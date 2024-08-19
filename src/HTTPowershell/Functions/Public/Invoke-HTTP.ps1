@@ -171,17 +171,17 @@ function Invoke-Http {
         }
 
         ### ---- Make request
-
+        $AnErrorHasOccurred = $false # Track this explicitly to avoid higher-level or old instances of $ResponseError causing the throw
         $Response = try {
             Invoke-WebRequest @IWRParams
         }
         catch {
-            Write-Error $_
+            $AnErrorHasOccurred = $true
             $ResponseError = $_
         }
 
         ### Handle errors
-        if ($null -ne $ResponseError) {
+        if ($AnErrorHasOccurred) {
             $ErrorsToSkip = @(
                 'The maximum redirection count has been exceeded. To increase the number of redirections allowed, supply a higher value to the -MaximumRedirection parameter.'
             )
