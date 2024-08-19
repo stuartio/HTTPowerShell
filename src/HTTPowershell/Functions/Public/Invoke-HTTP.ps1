@@ -176,14 +176,19 @@ function Invoke-Http {
             Invoke-WebRequest @IWRParams
         }
         catch {
+            Write-Error $_
             $ResponseError = $_
         }
 
-        $ErrorsToSkip = @(
-            'The maximum redirection count has been exceeded. To increase the number of redirections allowed, supply a higher value to the -MaximumRedirection parameter.'
-        )
-        if ($ResponseError.ErrorDetails.Message -notin $ErrorsToSkip) {
-            throw $ResponseError
+        ### Handle errors
+        if ($null -ne $ResponseError) {
+            $ErrorsToSkip = @(
+                'The maximum redirection count has been exceeded. To increase the number of redirections allowed, supply a higher value to the -MaximumRedirection parameter.'
+            )
+            if ($ResponseError.ErrorDetails.Message -notin $ErrorsToSkip) {
+                Write-Host $Response
+                return $ResponseError
+            }
         }
 
         
