@@ -186,7 +186,6 @@ function Invoke-Http {
                 'The maximum redirection count has been exceeded. To increase the number of redirections allowed, supply a higher value to the -MaximumRedirection parameter.'
             )
             if ($ResponseError.ErrorDetails.Message -notin $ErrorsToSkip) {
-                Write-Host $Response
                 return $ResponseError
             }
         }
@@ -213,8 +212,11 @@ function Invoke-Http {
                     }
                 }
             }
+            # Sort headers
+            $ResponseHeaders = $ResponseHeaders | Sort-Object -Property Name, Value
+            # Assign response body
             $ResponseBody = $Response.Content
-
+            
             ## Request Headers
             if ($Output.contains('H')) {
                 Write-Request -Method $Method -HttpVersion $HttpVersion -Uri $Uri
