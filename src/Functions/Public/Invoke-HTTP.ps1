@@ -41,10 +41,9 @@ function Invoke-Http {
         [Parameter()]
         [Alias('o')]
         [string]
-        $Output,
+        $Output = 'hb',
 
         [Parameter(ValueFromPipeline)]
-        [string]
         $Body,
 
         [Parameter(ValueFromRemainingArguments)]
@@ -61,7 +60,7 @@ function Invoke-Http {
         $HeaderForeGround = 'DarkCyan'
         $DefaultHttpVersion = '1.1'
 
-        $Headers = @{
+        $RequestHeaders = @{
             'Accept'          = '*/*'
             'Accept-Encoding' = 'gzip,deflate'
             'Connection'      = 'keep-alive'
@@ -89,7 +88,7 @@ function Invoke-Http {
         ### Parse Unnamed args
         foreach ($Arg in $UnnamedAdditionalArgs) {
             if ($Arg -match $HeaderParamRegex) {
-                $Headers[$Matches.name] = $Matches.Value
+                $RequestHeaders[$Matches.name] = $Matches.Value
             }
             elseif ($Arg -match $QueryParamRegex) {
                 $AdditionalQueryParams.Add($Arg)
@@ -113,14 +112,14 @@ function Invoke-Http {
 
         ### Append any additional cookies found
         if ($AdditionalRequestCookies.count -gt 0) {
-            $ExistingCookieHeader = $Headers['cookie']
+            $ExistingCookieHeader = $RequestHeaders['cookie']
             $JoinedAdditionalCookies = $AdditionalRequestCookies -join ';'
             $CookieJoiner = ''
             if ($null -ne $ExistingCookieHeader) {
                 # If cookies exist join with semi-colon
                 $CookieJoiner = ';'
             }
-            $Headers['cookie'] += "$CookieJoiner$JoinedAdditionalCookies"
+            $RequestHeaders['cookie'] += "$CookieJoiner$JoinedAdditionalCookies"
         }
 
         ### Select protocol if not provided
@@ -147,7 +146,7 @@ function Invoke-Http {
         # Splat IWR params
         $IWRParams = @{
             Uri                  = $Uri
-            Headers              = $Headers
+            Headers              = $RequestHeaders
             MaximumRedirection   = 0
             SkipHeaderValidation = $true
             SkipHttpErrorCheck   = $true
@@ -170,6 +169,12 @@ function Invoke-Http {
             }
         }
 
+        ### Parse Body
+        if ($null -ne $PSBoundParameters.Body) {
+            $RequestBody = Get-BodyString -Body $Body
+            $IWRParams.Body = $RequestBody
+        }
+
         ### ---- Make request
         try {
             $Response = Invoke-WebRequest @IWRParams
@@ -180,6 +185,8 @@ function Invoke-Http {
             return
         }
 
+        
+        ### ---- Output
         if ($Output) {
             ### Parse response. Have to use raw as we want to show multiple items for when headers are duplicated
             $RawResponse = $Response.RawContent -split "`r`n"
@@ -200,17 +207,21 @@ function Invoke-Http {
                     }
                 }
             }
+            $ResponseBody = $Response.Content
 
+            ## Request Headers
             if ($Output.contains('H')) {
                 Write-Request -Method $Method -HttpVersion $HttpVersion -Uri $Uri
-                $Headers.Keys | Sort-Object | ForEach-Object {
+                $RequestHeaders.Keys | Sort-Object | ForEach-Object {
                     Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_
-                    Write-Host ": $($Headers.$_)"
+                    Write-Host ": $($RequestHeaders.$_)"
                 }
                 # Add new line
                 Write-Host ""
             }
+            ## Response Headers
             if ($Output.contains('h')) {
+                Write-Host "Response headers"
                 Write-StatusCode $RawResponse[0]
                 $ResponseHeaders | Sort-Object -Property Name | ForEach-Object {
                     Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_.Name
@@ -218,6 +229,15 @@ function Invoke-Http {
                 }
                 # Add new line
                 Write-Host ""
+            }
+            ### Request Body
+            if ($Output.contains('B')) {
+                Write-Host "Request body"
+                Write-ColourfulOutput -Output $RequestBody -ContentType $RequestHeaders['content-type']
+            }
+            ## Response Body
+            if ($Output.contains('b')) {
+                Write-ColourfulOutput -Output $ResponseBody -ContentType $ResponseHeaders['content-type']
             }
         }
         else {
