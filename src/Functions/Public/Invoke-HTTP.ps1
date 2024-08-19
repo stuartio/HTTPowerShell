@@ -153,6 +153,7 @@ function Invoke-Http {
             SkipHttpErrorCheck   = $true
             Proxy                = $env:https_proxy
             HttpVersion          = $HttpVersion
+            ErrorAction          = 'stop'
         }
 
         ### Parse method
@@ -161,23 +162,23 @@ function Invoke-Http {
             $IWRParams.Method = $Method
         }
         else {
-            if ($PSVersionTable.PSVersion.Major -ge 6) {
-                $IWRParams.CustomMethod = $Method
-            }
-            else {
-                Write-Error "Method $Method is not acceptable in Windows Powershell. Please upgrade to version 6+ or use a method from the following table:"
-                Write-Error $DefaultMethods.ToString()
-            }
+            $IWRParams.CustomMethod = $Method
         }
 
         ### ---- Make request
-        try {
-            $Response = Invoke-WebRequest @IWRParams
+
+        $Response = try {
+            Invoke-WebRequest @IWRParams
         }
         catch {
-            Write-Error "Failed to connect to $Uri"
-            Write-Error $_
-            return
+            $ResponseError = $_
+        }
+
+        $ErrorsToSkip = @(
+            'The maximum redirection count has been exceeded. To increase the number of redirections allowed, supply a higher value to the -MaximumRedirection parameter.'
+        )
+        if ($ResponseError.ErrorDetails.Message -notin $ErrorsToSkip) {
+            throw $ResponseError
         }
 
         if ($Output) {
