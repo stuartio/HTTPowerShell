@@ -52,7 +52,7 @@ function Invoke-Http {
 
     process {
         ### Regexes
-        $HeaderParamRegex = '(?<name>[a-zA-Z0-9\-]+):(?<value>.*)'
+        $HeaderParamRegex = '(?<name>[a-zA-Z0-9\-]+):[ ]*(?<value>.*)'
         $QueryParamRegex = '[a-zA-Z0-9\-]+=(?!=).*'
         $CookieRegex = '[a-zA-Z0-9\-]+==.*'
 
@@ -60,12 +60,16 @@ function Invoke-Http {
         $HeaderForeGround = 'DarkCyan'
         $DefaultHttpVersion = '1.1'
 
+        ### Parsed URI
+        $ParsedURI = [System.Uri] $Uri
+
         $RequestHeaders = @{
             'Accept'          = '*/*'
             'Accept-Encoding' = 'gzip,deflate'
             'Connection'      = 'keep-alive'
-            'User-Agent'      = 'HttPowershell/0.0.1'
             'Content-Type'    = 'application/json'
+            'Host'            = $ParsedURI.Host
+            'User-Agent'      = 'HttPowershell/0.0.1'
         }
 
         ### Parse Params
@@ -216,10 +220,14 @@ function Invoke-Http {
             $ResponseHeaders = $ResponseHeaders | Sort-Object -Property Name, Value
             # Assign response body
             $ResponseBody = $Response.Content
+            # Handle byte[] response type
+            if ($ResponseBody -is 'byte[]') {
+                $ResponseBody = [System.Text.Encoding]::UTF8.GetString($ResponseBody)
+            }
             
             ## Request Headers
             if ($Output.contains('H')) {
-                Write-Request -Method $Method -HttpVersion $HttpVersion -Uri $Uri
+                Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
                 $RequestHeaders.Keys | Sort-Object | ForEach-Object {
                     Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_
                     Write-Host ": $($RequestHeaders.$_)"
@@ -227,23 +235,54 @@ function Invoke-Http {
                 # Add new line
                 Write-Host ""
             }
+
+            ### Request Body
+            if ($Output.contains('B')) {
+                Write-ColourfulOutput -Output $RequestBody -ContentType $RequestHeaders['content-type']
+                # Add new line
+                Write-Host ""
+            }
+
             ## Response Headers
             if ($Output.contains('h')) {
                 Write-StatusCode $RawResponse[0]
-                $ResponseHeaders | Sort-Object -Property Name | ForEach-Object {
+                $ResponseHeaders | ForEach-Object {
                     Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_.Name
                     Write-Host ": $($_.Value)"
                 }
                 # Add new line
                 Write-Host ""
             }
-            ### Request Body
-            if ($Output.contains('B')) {
-                Write-ColourfulOutput -Output $RequestBody -ContentType $RequestHeaders['content-type']
-            }
+            
             ## Response Body
             if ($Output.contains('b')) {
                 Write-ColourfulOutput -Output $ResponseBody -ContentType $ResponseHeaders['content-type']
+                # Add new line
+                Write-Host ""
+            }
+            if ($Output.contains('j')) {
+                try {
+                    $BodyObject = $ResponseBody | ConvertFrom-Json
+                    Write-Output $BodyObject
+                }
+                catch {
+                    Write-Debug "Failed to convert response body of type '$($ResponseHeaders['content-type'])' to object"
+                    Write-Output $ResponseBody
+                }
+                # Add new line
+                Write-Host ""
+            }
+            if ($Output.contains('x')) {
+                try {
+                    $BodyObject = [xml] $ResponseBody
+                    Write-Output $BodyObject
+                }
+                catch {
+                    Write-Debug "Failed to convert response body of type '$($ResponseHeaders['content-type'])' to object"
+                    Write-Output $ResponseBody
+                }
+                # Add new line
+                Write-Host ""
             }
         }
         else {

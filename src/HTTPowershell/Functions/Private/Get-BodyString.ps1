@@ -4,7 +4,8 @@ function Get-BodyString {
         $Body
     )
 
-    if ($Body -is 'PSCustomObject' -or $Body -is 'Object' -or $Body -is 'hashtable') {
+    # Convert PSCustomObjects or Hashtables
+    if ($Body -is 'PSCustomObject' -or $Body -is 'hashtable') {
         try {
             $BodyString = ConvertTo-Json -InputObject $Body -Depth 100
         }
@@ -14,6 +15,7 @@ function Get-BodyString {
             return
         }
     }
+    # Fall back to string
     else {
         $BodyString = $Body
     }
