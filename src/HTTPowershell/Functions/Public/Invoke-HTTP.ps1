@@ -47,14 +47,14 @@ function Invoke-Http {
         $Body,
 
         [Parameter(ValueFromRemainingArguments)]
-        $AdditionalArgs
+        $AdditionalParams
     )
 
     process {
         ### Regexes
-        $HeaderParamRegex = '(?<name>[a-zA-Z0-9\-]+):[ ]*(?<value>.*)'
-        $QueryParamRegex = '[a-zA-Z0-9\-]+=(?!=).*'
-        $CookieRegex = '[a-zA-Z0-9\-]+==.*'
+        $HeaderParamRegex = '([a-zA-Z0-9\-]+):'
+        $QueryParamRegex = '[a-zA-Z0-9\-]+='
+        $CookieRegex = '[a-zA-Z0-9\-]+=='
 
         ### Defaults
         $HeaderForeGround = 'DarkCyan'
@@ -73,33 +73,44 @@ function Invoke-Http {
         }
 
         ### Parse Params
-        $NamedAdditionalArgs = New-Object -TypeName System.Collections.Generic.List['Hashtable']
-        $UnnamedAdditionalArgs = New-Object -TypeName System.Collections.Generic.List['String']
+        Write-Debug "AdditionalParams:"
+        Write-Debug ($AdditionalParams | ConvertTo-Json)
+        $NamedAdditionalParams = @{}
+        $UnnamedAdditionalParams = New-Object -TypeName System.Collections.Generic.List['String']
         $AdditionalQueryParams = New-Object -TypeName System.Collections.Generic.List['String']
         $AdditionalRequestCookies = New-Object -TypeName System.Collections.Generic.List['String']
-        for ($i = 0; $i -lt $AdditionalArgs.count; $i++) {
-            $Arg = $AdditionalArgs[$i]
-            if ($Arg.StartsWith('-') -and -not (++$i -gt $AdditionalArgs.count)) {
-                $NamedAdditionalArgs.Add(@{
-                        $Arg.SubString(1) = $AdditionalArgs[$i]
-                    })
+        for ($i = 0; $i -lt $AdditionalParams.count; $i++) {
+            # Capture params starting with -, where there is a next item in the list but it does not start with -
+            if ($AdditionalParams[$i].StartsWith('-') -and -not (($i + 1) -eq $AdditionalParams.count) -and -not $AdditionalParams[$i + 1].StartsWith('-')) {
+                $ParamName = $AdditionalParams[$i].SubString(1)
+                $ParamValue = $AdditionalParams[++$i]
+                $NamedAdditionalParams[$ParamName] = $ParamValue
             }
+            # Else if param starts with - add as switch
+            elseif ($AdditionalParams[$i].StartsWith('-')) {
+                $ParamName = $AdditionalParams[$i].SubString(1)
+                $NamedAdditionalParams[$ParamName] = $true
+            }
+            # Otherwise add as unnamed param and parse
             else {
-                $UnnamedAdditionalArgs.Add($Arg)
+                $UnnamedAdditionalParams.Add($AdditionalParams[$i])
             }
         }
 
-        ### Parse Unnamed args
-        foreach ($Arg in $UnnamedAdditionalArgs) {
-            if ($Arg -match $HeaderParamRegex) {
-                $RequestHeaders[$Matches.name] = $Matches.Value
+        ### Parse Unnamed params
+        foreach ($Param in $UnnamedAdditionalParams) {
+            if ($Param -match $HeaderParamRegex) {
+                # Separate name and value, and encode value back to ascii
+                $HeaderValue = $Param.Replace($Matches[0], '').Trim()
+                $HeaderValue = ConvertTo-ASCII -InputObject $HeaderValue
+                $RequestHeaders[$Matches[1]] = $Param.Replace($Matches[0], '').Trim()
             }
-            elseif ($Arg -match $QueryParamRegex) {
-                $AdditionalQueryParams.Add($Arg)
+            elseif ($Param -match $QueryParamRegex) {
+                $AdditionalQueryParams.Add($Param)
             }
-            elseif ($Arg -match $CookieRegex) {
+            elseif ($Param -match $CookieRegex) {
                 # Add to array but replace == with =
-                $AdditionalRequestCookies.Add($Arg.Replace('==', '='))
+                $AdditionalRequestCookies.Add($Param.Replace('==', '='))
             }
         }
 
@@ -146,7 +157,6 @@ function Invoke-Http {
             $HttpVersion = '3.0'
         }
 
-
         # Splat IWR params
         $IWRParams = @{
             Uri                  = $Uri
@@ -157,6 +167,10 @@ function Invoke-Http {
             Proxy                = $env:https_proxy
             HttpVersion          = $HttpVersion
             ErrorAction          = 'stop'
+        }
+        # Add named additional args
+        foreach ($NamedArgKey in $NamedAdditionalParams.Keys) {
+            $IWRParams[$NamedArgKey] = $NamedAdditionalParams[$NamedArgKey]
         }
 
         ### Parse method
@@ -173,6 +187,9 @@ function Invoke-Http {
             $RequestBody = Get-BodyString -Body $Body
             $IWRParams.Body = $RequestBody
         }
+
+        Write-Debug "IWRParams:"
+        Write-Debug ($IWRParams | ConvertTo-Json)
 
         ### ---- Make request
         $AnErrorHasOccurred = $false # Track this explicitly to avoid higher-level or old instances of $ResponseError causing the throw
@@ -203,8 +220,8 @@ function Invoke-Http {
             for ($i = 1; $i -lt $RawResponse.count; $i++) {
                 if ($RawResponse[$i] -match $HeaderParamRegex) {
                     $ResponseHeaders.Add(@{
-                            name  = $Matches.name
-                            value = $Matches.value
+                            name  = $Matches[1]
+                            value = $RawResponse[$i].Replace($Matches[0], '').Trim()
                         })
                 }
                 else {
