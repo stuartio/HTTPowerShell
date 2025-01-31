@@ -32,11 +32,19 @@ function Invoke-Http {
 
         [Parameter()]
         [string]
-        $Certificate,
-
+        $ClientCertificate,
+        
         [Parameter()]
         [string]
-        $Key,
+        $ClientCertificateFile,
+        
+        [Parameter()]
+        [string]
+        $ClientKey,
+        
+        [Parameter()]
+        [string]
+        $ClientKeyFile,
 
         [Parameter()]
         [Alias('o')]
@@ -47,7 +55,149 @@ function Invoke-Http {
         $Body,
 
         [Parameter(ValueFromRemainingArguments)]
-        $AdditionalParams
+        $AdditionalParams,
+
+        ##-------------------- Default IWR Params beyond this point
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $AllowUnencryptedAuthentication,
+
+        [Parameter()]
+        [Microsoft.PowerShell.Commands.WebAuthenticationType]
+        $Authentication,
+
+        [Parameter()]
+        [System.Security.Cryptography.X509Certificates.X509Certificate]
+        $Certificate,
+
+        [Parameter()]
+        [System.String]
+        $CertificateThumbprint,
+
+        [Parameter()]
+        [System.String]
+        $ContentType,
+
+        [Parameter()]
+        [System.Management.Automation.PSCredential]
+        $Credential,
+
+        [Parameter()]
+        [System.String]
+        $CustomMethod,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $DisableKeepAlive,
+
+        [Parameter()]
+        [System.Collections.IDictionary]
+        $Form,
+
+        [Parameter()]
+        [System.Collections.IDictionary]
+        $Headers,
+
+        [Parameter()]
+        [System.Version]
+        $HttpVersion,
+
+        [Parameter()]
+        [System.String]
+        $InFile,
+
+        [Parameter()]
+        [System.Int32]
+        $MaximumRedirection = 0,
+
+        [Parameter()]
+        [System.Int32]
+        $MaximumRetryCount,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $NoProxy,
+
+        [Parameter()]
+        [System.String]
+        $OutFile,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $PassThru,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $PreserveAuthorizationOnRedirect,
+
+        [Parameter()]
+        [System.Uri]
+        $Proxy = $env:https_proxy,
+
+        [Parameter()]
+        [System.Management.Automation.PSCredential]
+        $ProxyCredential,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $ProxyUseDefaultCredentials,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $Resume,
+
+        [Parameter()]
+        [System.Int32]
+        $RetryIntervalSec,
+
+        [Parameter()]
+        [System.String]
+        $SessionVariable,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $SkipCertificateCheck,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $SkipHeaderValidation = $true,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $SkipHttpErrorCheck = $true,
+
+        [Parameter()]
+        [Microsoft.PowerShell.Commands.WebSslProtocol]
+        $SslProtocol,
+
+        [Parameter()]
+        [System.Int32]
+        $TimeoutSec,
+
+        [Parameter()]
+        [System.Security.SecureString]
+        $Token,
+
+        [Parameter()]
+        [System.String]
+        $TransferEncoding,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $UseBasicParsing,
+
+        [Parameter()]
+        [System.Management.Automation.SwitchParameter]
+        $UseDefaultCredentials,
+
+        [Parameter()]
+        [System.String]
+        $UserAgent,
+
+        [Parameter()]
+        [Microsoft.PowerShell.Commands.WebRequestSession]
+        $WebSession
     )
 
     process {
@@ -61,9 +211,13 @@ function Invoke-Http {
         $DefaultHttpVersion = '1.1'
 
         ### Parsed URI
+        if ($Uri -notmatch '^https?://') {
+            # Prepend protocol
+            $Uri = "https://$Uri"
+        }
         $ParsedURI = [System.Uri] $Uri
 
-        $RequestHeaders = @{
+        $Headers += @{
             'Accept'          = '*/*'
             'Accept-Encoding' = 'gzip,deflate'
             'Connection'      = 'keep-alive'
@@ -73,8 +227,6 @@ function Invoke-Http {
         }
 
         ### Parse Params
-        Write-Debug "AdditionalParams:"
-        Write-Debug ($AdditionalParams | ConvertTo-Json)
         $NamedAdditionalParams = @{}
         $UnnamedAdditionalParams = New-Object -TypeName System.Collections.Generic.List['String']
         $AdditionalQueryParams = New-Object -TypeName System.Collections.Generic.List['String']
@@ -102,15 +254,21 @@ function Invoke-Http {
             if ($Param -match $HeaderParamRegex) {
                 # Separate name and value, and encode value back to ascii
                 $HeaderValue = $Param.Replace($Matches[0], '').Trim()
-                $HeaderValue = ConvertTo-ASCII -InputObject $HeaderValue
-                $RequestHeaders[$Matches[1]] = $Param.Replace($Matches[0], '').Trim()
-            }
-            elseif ($Param -match $QueryParamRegex) {
-                $AdditionalQueryParams.Add($Param)
+                if ('' -eq $HeaderValue) {
+                    Write-Debug "---- Removing request header $($Matches[1])"
+                    $Headers.Remove($Matches[1])
+                }
+                else {
+                    $HeaderValue = ConvertTo-ASCII -InputObject $HeaderValue
+                    $Headers[$Matches[1]] = $Param.Replace($Matches[0], '').Trim()
+                }
             }
             elseif ($Param -match $CookieRegex) {
                 # Add to array but replace == with =
                 $AdditionalRequestCookies.Add($Param.Replace('==', '='))
+            }
+            elseif ($Param -match $QueryParamRegex) {
+                $AdditionalQueryParams.Add($Param)
             }
         }
 
@@ -127,14 +285,14 @@ function Invoke-Http {
 
         ### Append any additional cookies found
         if ($AdditionalRequestCookies.count -gt 0) {
-            $ExistingCookieHeader = $RequestHeaders['cookie']
+            $ExistingCookieHeader = $Headers['cookie']
             $JoinedAdditionalCookies = $AdditionalRequestCookies -join ';'
             $CookieJoiner = ''
             if ($null -ne $ExistingCookieHeader) {
                 # If cookies exist join with semi-colon
                 $CookieJoiner = ';'
             }
-            $RequestHeaders['cookie'] += "$CookieJoiner$JoinedAdditionalCookies"
+            $Headers['cookie'] += "$CookieJoiner$JoinedAdditionalCookies"
         }
 
         ### Select protocol if not provided
@@ -143,7 +301,9 @@ function Invoke-Http {
         }
 
         ### Parse Http Version
-        $HttpVersion = $DefaultHttpVersion
+        if ($null -eq $PSBoundParameters.HttpVersion) {
+            $HttpVersion = $DefaultHttpVersion
+        }
         if ($Http1) {
             $HttpVersion = '1.0'
         }
@@ -157,20 +317,29 @@ function Invoke-Http {
             $HttpVersion = '3.0'
         }
 
+        ## Handle overridden erroraction
+        $ErrorAction = 'stop'
+        if ($PSBoundParameters.ErrorAction) {
+            $ErrorAction = $PSBoundParameters.ErrorAction
+        }
+
         # Splat IWR params
         $IWRParams = @{
             Uri                  = $Uri
-            Headers              = $RequestHeaders
-            MaximumRedirection   = 0
-            SkipHeaderValidation = $true
-            SkipHttpErrorCheck   = $true
-            Proxy                = $env:https_proxy
+            Headers              = $Headers
+            MaximumRedirection   = $MaximumRedirection
+            SkipHeaderValidation = $SkipHeaderValidation
+            SkipHttpErrorCheck   = $SkipHttpErrorCheck
+            Proxy                = $Proxy
             HttpVersion          = $HttpVersion
-            ErrorAction          = 'stop'
+            ErrorAction          = $ErrorAction
         }
-        # Add named additional args
-        foreach ($NamedArgKey in $NamedAdditionalParams.Keys) {
-            $IWRParams[$NamedArgKey] = $NamedAdditionalParams[$NamedArgKey]
+        # Add additional params to IWRParams
+        $NonIWRParams = 'Output', 'http1', 'http1.1', 'http2', 'http3', 'AdditionalParams', 'Key', 'Debug', 'ClientCertificate', 'ClientCertificateFile', 'ClientKey', 'ClientKeyFile'
+        $PSBoundParameters.Keys  | ForEach-Object {
+            if ($_ -notin $NonIWRParams -and $_ -notin $IWRParams.Keys) {
+                $IWRParams.$_ = $PSBoundParameters.$_
+            }
         }
 
         ### Parse method
@@ -188,8 +357,42 @@ function Invoke-Http {
             $IWRParams.Body = $RequestBody
         }
 
+        ### Load Client Cert
+        if ($ClientCertificate -or $ClientCertificateFile) {
+            if ($null -eq $PSBoundParameters.ClientKey -and $null -eq $PSBoundParameters.ClientKeyFile) {
+                Write-Error "When using -ClientCertificate or -ClientCertificateFile you must provide one of: -ClientKey, -ClientKeyFile"
+                return
+            }
+            if ($ClientCertificate) {
+                $CertificateContent = $ClientCertificate
+            }
+            elseif ($ClientCertificateFile) {
+                if (-not (Test-Path $ClientCertificateFile)) {
+                    Write-Error "ClientCertificateFile '$ClientCertificateFile' not found"
+                    return
+                }
+                $CertificateContent = Get-Content -Raw -Path $ClientCertificateFile
+            }
+            if ($ClientKey) {
+                $KeyContent = $ClientKey
+            }
+            elseif ($ClientKeyFile) {
+                if (-not (Test-Path $ClientKeyFile)) {
+                    Write-Error "ClientKeyFile '$ClientKeyFile' not found"
+                    return
+                }
+                $KeyContent = Get-Content -Raw -Path $ClientKeyFile
+            }
+            $IWRParams.Certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPem($CertificateContent, $KeyContent)
+        }
+
+        # Add -PassThru if OutFile present
+        if ($OutFile) {
+            $IWRParams.PassThru = $true
+        }
+
         Write-Debug "IWRParams:"
-        Write-Debug ($IWRParams | ConvertTo-Json)
+        Write-Debug ($IWRParams | ConvertTo-Json -Depth 100)
 
         ### ---- Make request
         $AnErrorHasOccurred = $false # Track this explicitly to avoid higher-level or old instances of $ResponseError causing the throw
@@ -235,6 +438,10 @@ function Invoke-Http {
             }
             # Sort headers
             $ResponseHeaders = $ResponseHeaders | Sort-Object -Property Name, Value
+            $ResponseContentType = $ResponseHeaders |
+            Where-Object { $_.name.ToLower() -eq 'content-type' } |
+            Select-Object -First 1 |
+            Select-Object -ExpandProperty value
             # Assign response body
             $ResponseBody = $Response.Content
             # Handle byte[] response type
@@ -245,9 +452,9 @@ function Invoke-Http {
             ## Request Headers
             if ($Output.contains('H')) {
                 Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
-                $RequestHeaders.Keys | Sort-Object | ForEach-Object {
+                $Headers.Keys | Sort-Object | ForEach-Object {
                     Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_
-                    Write-Host ": $($RequestHeaders.$_)"
+                    Write-Host ": $($Headers.$_)"
                 }
                 # Add new line
                 Write-Host ""
@@ -255,7 +462,7 @@ function Invoke-Http {
 
             ### Request Body
             if ($Output.contains('B')) {
-                Write-ColourfulOutput -Output $RequestBody -ContentType $RequestHeaders['content-type']
+                Write-ColourfulOutput -Output $RequestBody -ContentType $Headers['content-type']
                 # Add new line
                 Write-Host ""
             }
@@ -273,7 +480,7 @@ function Invoke-Http {
             
             ## Response Body
             if ($Output.contains('b')) {
-                Write-ColourfulOutput -Output $ResponseBody -ContentType $ResponseHeaders['content-type']
+                Write-ColourfulOutput -Output $ResponseBody -ContentType $ResponseContentType
                 # Add new line
                 Write-Host ""
             }
@@ -283,7 +490,7 @@ function Invoke-Http {
                     Write-Output $BodyObject
                 }
                 catch {
-                    Write-Debug "Failed to convert response body of type '$($ResponseHeaders['content-type'])' to object"
+                    Write-Debug "Failed to convert response body of type '$ResponseContentType' to object"
                     Write-Output $ResponseBody
                 }
                 # Add new line
@@ -295,7 +502,7 @@ function Invoke-Http {
                     Write-Output $BodyObject
                 }
                 catch {
-                    Write-Debug "Failed to convert response body of type '$($ResponseHeaders['content-type'])' to object"
+                    Write-Debug "Failed to convert response body of type '$ResponseContentType' to object"
                     Write-Output $ResponseBody
                 }
                 # Add new line

@@ -12,7 +12,10 @@ function Write-ColourfulOutput {
     )
 
     switch -wildcard ($ContentType) {
-        'application/json*' { Write-ColourfulJSON -JSON $Output }
-        default { Write-Host $Output }
+        'application/*json*' { Write-ColourfulJSON -JSON $Output }
+        'application/*xml*' { Write-Host $Output }
+        'application/*html*' { Write-Host $Output }
+        'text/*' { Write-Host $Output }
+        default { Write-Host "-- Binary data in format '$ContentType' not shown in termainal --" }
     }
 }
