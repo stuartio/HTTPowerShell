@@ -28,7 +28,7 @@ function Write-ColourfulOutput {
         'text/*' { Write-Host $Output }
         '' { Write-Host $Output } # For no content-type, try printing directly
         default { 
-            Write-Host "-- Binary data in format '$KeyColor$ContentType$Reset' not shown in termainal --" 
+            Write-Host "-- Binary data in format '$KeyColor$ContentType$Reset' not shown in terminal --" 
         }
     }
 }
