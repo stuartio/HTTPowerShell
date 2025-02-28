@@ -210,6 +210,9 @@ function Invoke-Http {
         $HeaderForeGround = 'DarkCyan'
         $DefaultHttpVersion = '1.1'
 
+        ### Disable DNS cache
+        [System.Net.ServicePointManager]::DnsRefreshTimeout = 0
+
         ### Parsed URI
         if ($Uri -notmatch '^https?://') {
             # Prepend protocol
@@ -333,6 +336,7 @@ function Invoke-Http {
             Proxy                = $Proxy
             HttpVersion          = $HttpVersion
             ErrorAction          = $ErrorAction
+            DisableKeepAlive     = $true
         }
         # Add additional params to IWRParams
         $NonIWRParams = 'Output', 'http1', 'http1.1', 'http2', 'http3', 'AdditionalParams', 'Key', 'Debug', 'ClientCertificate', 'ClientCertificateFile', 'ClientKey', 'ClientKeyFile'
@@ -394,6 +398,33 @@ function Invoke-Http {
         Write-Debug "IWRParams:"
         Write-Debug ($IWRParams | ConvertTo-Json -Depth 100)
 
+        #### ---- Request Output
+        if ($Output) {
+            ## Request Headers
+            if ($Output.contains('H')) {
+                Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
+                $Headers.Keys | Sort-Object | ForEach-Object {
+                    Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_
+                    Write-Host ": $($Headers.$_)"
+                }
+                # Add new line
+                Write-Host ""
+            }
+
+            ### Request Body
+            if ($Output.contains('B')) {
+                if ($RequestBody) {
+                    Write-ColourfulOutput -Output $RequestBody -ContentType $Headers['content-type']
+                    # Add new line
+                    Write-Host ""
+                }
+            }
+        }
+
+        ## ---- Backup and set ProgressPreference
+        $OldProgressPreference = $ProgressPreference
+        $ProgressPreference = 'SilentlyContinue'
+
         ### ---- Make request
         $AnErrorHasOccurred = $false # Track this explicitly to avoid higher-level or old instances of $ResponseError causing the throw
         $Response = try {
@@ -414,8 +445,10 @@ function Invoke-Http {
             }
         }
 
+        ## ---- Reset ProgressPreference
+        $ProgressPreference = $OldProgressPreference
         
-        ### ---- Output
+        ### ---- Response Output
         if ($Output) {
             ### Parse response. Have to use raw as we want to show multiple items for when headers are duplicated
             $RawResponse = $Response.RawContent -split "`r`n"
@@ -447,24 +480,6 @@ function Invoke-Http {
             # Handle byte[] response type
             if ($ResponseBody -is 'byte[]') {
                 $ResponseBody = [System.Text.Encoding]::UTF8.GetString($ResponseBody)
-            }
-            
-            ## Request Headers
-            if ($Output.contains('H')) {
-                Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
-                $Headers.Keys | Sort-Object | ForEach-Object {
-                    Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_
-                    Write-Host ": $($Headers.$_)"
-                }
-                # Add new line
-                Write-Host ""
-            }
-
-            ### Request Body
-            if ($Output.contains('B')) {
-                Write-ColourfulOutput -Output $RequestBody -ContentType $Headers['content-type']
-                # Add new line
-                Write-Host ""
             }
 
             ## Response Headers
