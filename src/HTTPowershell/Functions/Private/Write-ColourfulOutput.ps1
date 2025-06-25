@@ -23,9 +23,11 @@ function Write-ColourfulOutput {
 
     switch -wildcard ($ContentType) {
         'application/*json*' { Write-ColourfulJSON -JSON $Output }
-        'application/*xml*' { Write-Host $Output }
-        'application/*html*' { Write-Host $Output }
+        'application/*xml*' { Write-Host $Output } # TODO: Write pretty handler
+        'application/*html*' { Write-Host $Output } # TODO: Write pretty handler
+        'application/x-mpegURL' { Write-Host $Output } # TODO: Write pretty handler
         'text/*' { Write-Host $Output }
+        'multipart/form-data*' { Write-Host $Output }
         '' { Write-Host $Output } # For no content-type, try printing directly
         default { 
             Write-Host "-- Binary data in format '$KeyColor$ContentType$Reset' not shown in terminal --" 

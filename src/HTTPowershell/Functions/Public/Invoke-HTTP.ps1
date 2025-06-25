@@ -44,12 +44,16 @@ function Invoke-Http {
         
         [Parameter()]
         [string]
+        $RouteTo,
+        
+        [Parameter()]
+        [string]
         $ClientKeyFile,
 
         [Parameter()]
-        [Alias('o')]
+        [Alias('d')]
         [string]
-        $Output = 'hb',
+        $Display = 'shb',
 
         [Parameter(ValueFromPipeline)]
         $Body,
@@ -202,9 +206,9 @@ function Invoke-Http {
 
     process {
         ### Regexes
-        $HeaderParamRegex = '([a-zA-Z0-9\-]+):'
-        $QueryParamRegex = '[a-zA-Z0-9\-]+='
-        $CookieRegex = '[a-zA-Z0-9\-]+=='
+        $HeaderParamRegex = '([a-zA-Z0-9\-_]+):'
+        $QueryParamRegex = '[a-zA-Z0-9\-_]+='
+        $CookieRegex = '[a-zA-Z0-9\-_]+=='
 
         ### Defaults
         $HeaderForeGround = 'DarkCyan'
@@ -227,6 +231,11 @@ function Invoke-Http {
             'Content-Type'    = 'application/json'
             'Host'            = $ParsedURI.Host
             'User-Agent'      = 'HttPowershell/0.0.1'
+        }
+
+        ### RouteTo
+        if ($RouteTo) {
+            $Uri = $Uri.Replace($ParsedURI.Host, $RouteTo)
         }
 
         ### Parse Params
@@ -339,7 +348,7 @@ function Invoke-Http {
             DisableKeepAlive     = $true
         }
         # Add additional params to IWRParams
-        $NonIWRParams = 'Output', 'http1', 'http1.1', 'http2', 'http3', 'AdditionalParams', 'Key', 'Debug', 'ClientCertificate', 'ClientCertificateFile', 'ClientKey', 'ClientKeyFile'
+        $NonIWRParams = 'Display', 'http1', 'http1.1', 'http2', 'http3', 'AdditionalParams', 'Key', 'Debug', 'ClientCertificate', 'ClientCertificateFile', 'ClientKey', 'ClientKeyFile', 'RouteTo'
         $PSBoundParameters.Keys  | ForEach-Object {
             if ($_ -notin $NonIWRParams -and $_ -notin $IWRParams.Keys) {
                 $IWRParams.$_ = $PSBoundParameters.$_
@@ -399,9 +408,9 @@ function Invoke-Http {
         Write-Debug ($IWRParams | ConvertTo-Json -Depth 100)
 
         #### ---- Request Output
-        if ($Output) {
+        if ($Display) {
             ## Request Headers
-            if ($Output.contains('H')) {
+            if ($Display.contains('H')) {
                 Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
                 $Headers.Keys | Sort-Object | ForEach-Object {
                     Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_
@@ -412,7 +421,7 @@ function Invoke-Http {
             }
 
             ### Request Body
-            if ($Output.contains('B')) {
+            if ($Display.contains('B')) {
                 if ($RequestBody) {
                     Write-ColourfulOutput -Output $RequestBody -ContentType $Headers['content-type']
                     # Add new line
@@ -449,7 +458,7 @@ function Invoke-Http {
         $ProgressPreference = $OldProgressPreference
         
         ### ---- Response Output
-        if ($Output) {
+        if ($Display) {
             ### Parse response. Have to use raw as we want to show multiple items for when headers are duplicated
             $RawResponse = $Response.RawContent -split "`r`n"
             $ResponseHeaders = New-Object -TypeName System.Collections.Generic.List['HashTable']
@@ -482,9 +491,16 @@ function Invoke-Http {
                 $ResponseBody = [System.Text.Encoding]::UTF8.GetString($ResponseBody)
             }
 
-            ## Response Headers
-            if ($Output.contains('h')) {
+            ### Status
+            if ($Display.contains('S')) {
+                Write-Host -ForegroundColor $HeaderForeGround $Response.StatusCode
+            }
+            if ($Display.contains('s')) {
                 Write-StatusCode $RawResponse[0]
+            }
+
+            ## Response Headers
+            if ($Display.contains('h')) {
                 $ResponseHeaders | ForEach-Object {
                     Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_.Name
                     Write-Host ": $($_.Value)"
@@ -494,12 +510,12 @@ function Invoke-Http {
             }
             
             ## Response Body
-            if ($Output.contains('b')) {
+            if ($Display.contains('b')) {
                 Write-ColourfulOutput -Output $ResponseBody -ContentType $ResponseContentType
                 # Add new line
                 Write-Host ""
             }
-            if ($Output.contains('j')) {
+            if ($Display.contains('j')) {
                 try {
                     $BodyObject = $ResponseBody | ConvertFrom-Json
                     Write-Output $BodyObject
@@ -511,7 +527,7 @@ function Invoke-Http {
                 # Add new line
                 Write-Host ""
             }
-            if ($Output.contains('x')) {
+            if ($Display.contains('x')) {
                 try {
                     $BodyObject = [xml] $ResponseBody
                     Write-Output $BodyObject
