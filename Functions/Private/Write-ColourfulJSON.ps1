@@ -6,19 +6,19 @@ function Write-ColourfulJSON {
 
         [Parameter()]
         [string]
-        $KeyColor = (Get-PSReadLineOption).CommentColor,
+        $KeyColour = (Get-PSReadLineOption).CommentColor,
 
         [Parameter()]
         [string]
-        $StringColor = (Get-PSReadLineOption).StringColor,
+        $StringColour = (Get-PSReadLineOption).StringColour,
 
         [Parameter()]
         [string]
-        $NumberColor = (Get-PSReadLineOption).ListPredictionColor,
+        $NumberColour = (Get-PSReadLineOption).ListPredictionColor,
 
         [Parameter()]
         [string]
-        $OtherColor = (Get-PSReadLineOption).ParameterColor
+        $OtherColour = (Get-PSReadLineOption).ParameterColor
     )
 
     Begin {
@@ -43,16 +43,16 @@ function Write-ColourfulJSON {
         $FormattedJSON = ConvertFrom-Json -InputObject $JSON | ConvertTo-Json -Depth 100
 
         # Find keys as any line which starts with a double-quoted string followed by a colon
-        $FormattedJSON = $FormattedJSON -Replace '(?m)([ ]+)("[^"\\\n\r]*(?:\\.[^"\\]*)*"(?=:))', "`$1$KeyColor`$2$Reset"
+        $FormattedJSON = $FormattedJSON -Replace '(?m)([ ]+)("[^"\\\n\r]*(?:\\.[^"\\]*)*"(?=:))', "`$1$KeyColour`$2$Reset"
 
         # Find all other sets of characters that the same match but NOT followed by a colon
-        $FormattedJSON = $FormattedJSON -replace '(?m)([ ]+)("[^"\\\n\r]*(?:\\.[^"\\]*)*"(?!:))', "`$1$StringColor`$2$Reset"
+        $FormattedJSON = $FormattedJSON -replace '(?m)([ ]+)("[^"\\\n\r]*(?:\\.[^"\\]*)*"(?!:))', "`$1$StringColour`$2$Reset"
 
         #Find true/false/null strings that end a line and colorize
-        $FormattedJSON = $FormattedJSON -replace "(?m)(true|false|null)$EOL", "$OtherColor`$1$Reset"
+        $FormattedJSON = $FormattedJSON -replace "(?m)(true|false|null)$EOL", "$OtherColour`$1$Reset"
 
         # Find numbers that end a line and colorize
-        $FormattedJSON = $FormattedJSON -replace "(?m)(:[ ]*)(-?[\d\.]+([eE]{1}[+-][\d]+)?)$EOL", "`$1$NumberColor`$2$Reset"
+        $FormattedJSON = $FormattedJSON -replace "(?m)(:[ ]*)(-?[\d\.]+([eE]{1}[+-][\d]+)?)$EOL", "`$1$NumberColour`$2$Reset"
 
         Write-Host $FormattedJSON
     }

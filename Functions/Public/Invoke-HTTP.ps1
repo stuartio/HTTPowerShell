@@ -16,9 +16,9 @@ function Invoke-Http {
         $Http1,
 
         [Parameter(ParameterSetName = 'h11')]
-        [Alias('h1.1')]
+        [Alias('h11')]
         [switch]
-        ${Http1.1},
+        $Http11,
 
         [Parameter(ParameterSetName = 'h2')]
         [Alias('h2')]
@@ -319,7 +319,7 @@ function Invoke-Http {
         if ($Http1) {
             $HttpVersion = '1.0'
         }
-        elseif (${Http1.1}) {
+        elseif ($Http11) {
             $HttpVersion = '1.1'
         }
         elseif ($Http2) {
@@ -411,13 +411,15 @@ function Invoke-Http {
         if ($Display) {
             ## Request Headers
             if ($Display.contains('H')) {
-                Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
-                $Headers.Keys | Sort-Object | ForEach-Object {
-                    Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_
-                    Write-Host ": $($Headers.$_)"
+                # Format headers hashtable into array of objects
+                $RequestHeaders = $Headers.Keys | ForEach-Object {
+                    [PSCustomObject] @{ Name = $_; Value = $Headers[$_] }
                 }
+
+                Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
+                $RequestHeaders | Write-ColourfulHeaders
                 # Add new line
-                Write-Host ""
+                Write-Output ""
             }
 
             ### Request Body
@@ -425,7 +427,7 @@ function Invoke-Http {
                 if ($RequestBody) {
                     Write-ColourfulOutput -Output $RequestBody -ContentType $Headers['content-type']
                     # Add new line
-                    Write-Host ""
+                    Write-Output ""
                 }
             }
         }
@@ -501,19 +503,15 @@ function Invoke-Http {
 
             ## Response Headers
             if ($Display.contains('h')) {
-                $ResponseHeaders | ForEach-Object {
-                    Write-Host -ForegroundColor $HeaderForeGround -NoNewline $_.Name
-                    Write-Host ": $($_.Value)"
-                }
-                # Add new line
-                Write-Host ""
+                $ResponseHeaders | Write-ColourfulHeaders
+                Write-Output ""
             }
             
             ## Response Body
             if ($Display.contains('b')) {
                 Write-ColourfulOutput -Output $ResponseBody -ContentType $ResponseContentType
                 # Add new line
-                Write-Host ""
+                Write-Output ""
             }
             if ($Display.contains('j')) {
                 try {
@@ -525,7 +523,7 @@ function Invoke-Http {
                     Write-Output $ResponseBody
                 }
                 # Add new line
-                Write-Host ""
+                Write-Output ""
             }
             if ($Display.contains('x')) {
                 try {
@@ -537,7 +535,7 @@ function Invoke-Http {
                     Write-Output $ResponseBody
                 }
                 # Add new line
-                Write-Host ""
+                Write-Output ""
             }
         }
         else {
