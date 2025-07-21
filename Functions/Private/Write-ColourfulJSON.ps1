@@ -54,6 +54,6 @@ function Write-ColourfulJSON {
         # Find numbers that end a line and colorize
         $FormattedJSON = $FormattedJSON -replace "(?m)(:[ ]*)(-?[\d\.]+([eE]{1}[+-][\d]+)?)$EOL", "`$1$NumberColour`$2$Reset"
 
-        Write-Host $FormattedJSON
+        Write-Output $FormattedJSON
     }
 }

@@ -1,3 +1,40 @@
+<#
+.SYNOPSIS
+Make HTTP request
+.DESCRIPTION
+Create an HTTP request with user-friendly options for headers, queries and cookies and display the response in the given format. Parameters will result in a call to Invoke-WebRequest, so all IWR parameters are also supported. Note: these may vary based on your version of PowerShell, and will not be validated.
+Parameters SkipHeaderValidation and SkipHttpError check are defaulted to $true, and MaximumRedirection is set to 0 so redirects are not chased by default. These can be overridden by supplied parameters if required.
+.NOTES
+Author: Stuart Macleod (@stuartio)
+.PARAMETER Uri
+Request URI
+.PARAMETER Method
+Request Method. If a standard HTTP Method the Invoke-WebRequest `Method` parameter will be used. Otherwise the method will be passed to `CustomMethod`. Defaults to 'GET'
+.PARAMETER Body
+Request body, either as PSCustomObject, hashtable or string. Non-string objects are converted to JSON strings.
+.PARAMETER Display
+Format to display input and output elements. Can contain one or more of the following options: H - request headers, B - request body, s - response status code and description, S - response status code only, h - response headers, b - response body as string, j - response body JSON string converted to PSCustomObject, x - response body XML converted to XML object. In various circumstances, the text printed to the screen will be coloured according to your shell settings, and will adapt accordingly.
+.PARAMETER Http1
+Use HTTP/1.0
+.PARAMETER Http11
+Use HTTP/1.1
+.PARAMETER Http2
+Use HTTP/2
+.PARAMETER Http3
+Use HTTP/3
+.PARAMETER ClientCertificate
+String containing base64-encoded public key of your client certificate.
+.PARAMETER ClientCertificateFile
+File containing base64-encoded public key of your client certificate.
+.PARAMETER ClientKey
+String containing base64-encoded private key of your client certificate.
+.PARAMETER ClientKeyFile
+File containing base64-encoded private key of your client certificate.
+.PARAMETER RouteTo
+Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
+.PARAMETER AdditionalParams
+Placeholder parameter for all unnamed params (such as headers, query string parameters and cookies) that you might provide on the command line.
+#>
 function Invoke-Http {
     [CmdletBinding(DefaultParameterSetName = 'h2')]
     [Alias('web')]
@@ -44,11 +81,11 @@ function Invoke-Http {
         
         [Parameter()]
         [string]
-        $RouteTo,
+        $ClientKeyFile,
         
         [Parameter()]
         [string]
-        $ClientKeyFile,
+        $RouteTo,
 
         [Parameter()]
         [Alias('d')]
@@ -68,7 +105,8 @@ function Invoke-Http {
         $AllowUnencryptedAuthentication,
 
         [Parameter()]
-        [Microsoft.PowerShell.Commands.WebAuthenticationType]
+        [ValidateSet('None', 'Bearer', 'Basic', 'OAuth', 'EdgeGrid')]
+        [string]
         $Authentication,
 
         [Parameter()]
@@ -165,11 +203,11 @@ function Invoke-Http {
 
         [Parameter()]
         [System.Management.Automation.SwitchParameter]
-        $SkipHeaderValidation = $true,
+        $SkipHeaderValidation,
 
         [Parameter()]
         [System.Management.Automation.SwitchParameter]
-        $SkipHttpErrorCheck = $true,
+        $SkipHttpErrorCheck,
 
         [Parameter()]
         [Microsoft.PowerShell.Commands.WebSslProtocol]
@@ -204,6 +242,35 @@ function Invoke-Http {
         $WebSession
     )
 
+    dynamicparam {
+        if ($Authentication -eq 'EdgeGrid') {
+            $paramDictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+            
+            $EdgeRCAttributeCollection = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
+            $EdgeRCAttribute = New-Object System.Management.Automation.ParameterAttribute
+            $EdgeRCAttribute.Mandatory = $false
+            $EdgeRCAttributeCollection.Add($EdgeRCAttribute)
+            $EdgeRCParam = New-Object System.Management.Automation.RuntimeDefinedParameter('EdgeRCFile', [string], $EdgeRCAttributeCollection)
+            $paramDictionary.Add('EdgeRCFile', $EdgeRCParam)
+            
+            $SectionAttributeCollection = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
+            $SectionAttribute = New-Object System.Management.Automation.ParameterAttribute
+            $SectionAttribute.Mandatory = $false
+            $SectionAttributeCollection.Add($SectionAttribute)
+            $SectionParam = New-Object System.Management.Automation.RuntimeDefinedParameter('Section', [string], $SectionAttributeCollection)
+            $paramDictionary.Add('Section', $SectionParam)
+
+            $AccountSwitchKeyAttributeCollection = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
+            $AccountSwitchKeyAttribute = New-Object System.Management.Automation.ParameterAttribute
+            $AccountSwitchKeyAttribute.Mandatory = $false
+            $AccountSwitchKeyAttributeCollection.Add($AccountSwitchKeyAttribute)
+            $AccountSwitchKeyParam = New-Object System.Management.Automation.RuntimeDefinedParameter('AccountSwitchKey', [string], $AccountSwitchKeyAttributeCollection)
+            $paramDictionary.Add('AccountSwitchKey', $AccountSwitchKeyParam)
+
+            return $paramDictionary
+        }
+    }
+
     process {
         ### Regexes
         $HeaderParamRegex = '([a-zA-Z0-9\-_]+):'
@@ -217,13 +284,7 @@ function Invoke-Http {
         ### Disable DNS cache
         [System.Net.ServicePointManager]::DnsRefreshTimeout = 0
 
-        ### Parsed URI
-        if ($Uri -notmatch '^https?://') {
-            # Prepend protocol
-            $Uri = "https://$Uri"
-        }
-        $ParsedURI = [System.Uri] $Uri
-
+        ### Set Headers
         $Headers += @{
             'Accept'          = '*/*'
             'Accept-Encoding' = 'gzip,deflate'
@@ -231,11 +292,6 @@ function Invoke-Http {
             'Content-Type'    = 'application/json'
             'Host'            = $ParsedURI.Host
             'User-Agent'      = 'HttPowershell/0.0.1'
-        }
-
-        ### RouteTo
-        if ($RouteTo) {
-            $Uri = $Uri.Replace($ParsedURI.Host, $RouteTo)
         }
 
         ### Parse Params
@@ -307,6 +363,56 @@ function Invoke-Http {
             $Headers['cookie'] += "$CookieJoiner$JoinedAdditionalCookies"
         }
 
+        ### Calculate auth header if authentication == edgegrid
+        if ($Authentication -eq 'EdgeGrid') {
+            $CredentialParams = @{
+                EdgeRCFile       = $PSBoundParameters.EdgeRCFile
+                Section          = $PSBoundParameters.Section
+                AccountSwitchKey = $PSBoundParameters.AccountSwitchKey
+            }
+            $Credentials = Get-AkamaiCredentials @CredentialParams
+            $AkamaiAuthParams = @{
+                Credentials  = $Credentials
+                Method       = $Method
+                ExpandedPath = $Uri
+            }
+
+            if ($Body) { $AkamaiAuthParams.Body = $Body }
+            if ($InFile) { $AkamaiAuthParams.InputFile = $InputFile }
+
+            $AkamaiAuthHeader = Get-AkamaiAuthHeader @AkamaiAuthParams
+            Write-Debug "Akamai auth header: $AkamaiAuthHeader"
+            $Headers['Authorization'] = $AkamaiAuthHeader
+
+            ## Add ASK
+            if ($Credentials.AccountSwitchKey) {
+                if ($Uri.Contains('?')) {
+                    $Uri += "&"
+                }
+                else {
+                    $Uri += "?"
+                }
+                $Uri += "accountSwitchKey=$($Credentials.AccountSwitchKey)"
+            }
+
+            $Uri = "https://$($Credentials.host)$Uri"
+        }
+
+        ### Parsed URI
+        if ($Uri -notmatch '^https?://') {
+            # Prepend protocol
+            $Uri = "https://$Uri"
+        }
+        $ParsedURI = [System.Uri] $Uri
+
+        ### Set forward host header
+        $Headers['Host'] = $ParsedURI.Host
+
+        ### RouteTo
+        if ($RouteTo) {
+            $Uri = $Uri.Replace($ParsedURI.Host, $RouteTo)
+        }
+
         ### Select protocol if not provided
         if (-not ($Uri -match '^(http|HTTP)[sS]?:\/\/.*')) {
             $Uri = "https://$Uri"
@@ -335,6 +441,14 @@ function Invoke-Http {
             $ErrorAction = $PSBoundParameters.ErrorAction
         }
 
+        ## Handle skip switches to true
+        if ($null -eq $PSBoundParameters.SkipHeaderValidation) {
+            $SkipHeaderValidation = $true
+        }
+        if ($null -eq $PSBoundParameters.SkipHttpErrorCheck) {
+            $SkipHttpErrorCheck = $true
+        }
+
         # Splat IWR params
         $IWRParams = @{
             Uri                  = $Uri
@@ -348,7 +462,28 @@ function Invoke-Http {
             DisableKeepAlive     = $true
         }
         # Add additional params to IWRParams
-        $NonIWRParams = 'Display', 'http1', 'http1.1', 'http2', 'http3', 'AdditionalParams', 'Key', 'Debug', 'ClientCertificate', 'ClientCertificateFile', 'ClientKey', 'ClientKeyFile', 'RouteTo'
+        $NonIWRParams = @(
+            'Display',
+            'http1',
+            'http11',
+            'http2',
+            'http3',
+            'AdditionalParams',
+            'Key',
+            'Debug',
+            'ClientCertificate',
+            'ClientCertificateFile',
+            'ClientKey',
+            'ClientKeyFile',
+            'RouteTo',
+            'EdgeRCFile',
+            'Section',
+            'AccountSwitchKey'
+        )
+        if ($Authentication -eq 'EdgeGrid') {
+            $NonIWRParams += 'Authentication'
+        }
+
         $PSBoundParameters.Keys  | ForEach-Object {
             if ($_ -notin $NonIWRParams -and $_ -notin $IWRParams.Keys) {
                 $IWRParams.$_ = $PSBoundParameters.$_
@@ -438,12 +573,14 @@ function Invoke-Http {
 
         ### ---- Make request
         $AnErrorHasOccurred = $false # Track this explicitly to avoid higher-level or old instances of $ResponseError causing the throw
-        $Response = try {
-            Invoke-WebRequest @IWRParams
-        }
-        catch {
-            $AnErrorHasOccurred = $true
-            $ResponseError = $_
+        $ResponseTime = Measure-Command { 
+            $Response = try {
+                Invoke-WebRequest @IWRParams
+            }
+            catch {
+                $AnErrorHasOccurred = $true
+                $ResponseError = $_
+            }
         }
 
         ### Handle errors
@@ -495,7 +632,7 @@ function Invoke-Http {
 
             ### Status
             if ($Display.contains('S')) {
-                Write-Host -ForegroundColor $HeaderForeGround $Response.StatusCode
+                Write-Output -ForegroundColor $HeaderForeGround $Response.StatusCode
             }
             if ($Display.contains('s')) {
                 Write-StatusCode $RawResponse[0]
@@ -536,6 +673,14 @@ function Invoke-Http {
                 }
                 # Add new line
                 Write-Output ""
+            }
+
+            ## Response Time
+            if ($Display.Contains('r')) {
+                Write-Output "$StringColour`Total Milliseconds$Reset`: $($ResponseTime.TotalMilliseconds)"
+            }
+            if ($Display.Contains('R')) {
+                $ResponseTime
             }
         }
         else {

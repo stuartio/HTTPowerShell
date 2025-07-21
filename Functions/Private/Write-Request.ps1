@@ -17,9 +17,5 @@ function Write-Request {
     $HTTPVersionFGColour = 'DarkBlue'
     $PathFGColour = 'DarkCyan'
 
-    Write-Host -ForegroundColor $MethodFGColour -NoNewline $Method
-    Write-Host -ForegroundColor $PathFGColour -NoNewline " $($ParsedUri.PathAndQuery)"
-    Write-Host -ForegroundColor $HTTPVersionFGColour -NoNewline " HTTP"
-    Write-Host -ForegroundColor White -NoNewline "/"
-    Write-Host -ForegroundColor $HTTPVersionFGColour $HttpVersion
+    Write-ColourOutput "|$MethodFGColour|$Method|!||$PathFGColour|$($ParsedUri.PathAndQuery)|!| |$HTTPVersionFGColour|HTTP|!|/|$HTTPVersionFGColour|$HttpVersion|!|"
 }
