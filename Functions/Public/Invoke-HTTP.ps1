@@ -35,6 +35,43 @@ Replace hostname in your request Uri, but maintain Host header. Analagous to the
 .PARAMETER AdditionalParams
 Placeholder parameter for all unnamed params (such as headers, query string parameters and cookies) that you might provide on the command line.
 #>
+<#
+.SYNOPSIS
+Make HTTP request
+.DESCRIPTION
+Create an HTTP request with user-friendly options for headers, queries and cookies and display the response in the given format. Parameters will result in a call to Invoke-WebRequest, so all IWR parameters are also supported. Note: these may vary based on your version of PowerShell, and will not be validated.
+Parameters SkipHeaderValidation and SkipHttpError check are defaulted to $true, and MaximumRedirection is set to 0 so redirects are not chased by default. These can be overridden by supplied parameters if required.
+.NOTES
+Author: Stuart Macleod (@stuartio)
+.PARAMETER Uri
+Request URI
+.PARAMETER Method
+Request Method. If a standard HTTP Method the Invoke-WebRequest `Method` parameter will be used. Otherwise the method will be passed to `CustomMethod`. Defaults to 'GET'
+.PARAMETER Body
+Request body, either as PSCustomObject, hashtable or string. Non-string objects are converted to JSON strings.
+.PARAMETER Display
+Format to display input and output elements. Can contain one or more of the following options: H - request headers, B - request body, s - response status code and description, S - response status code only, h - response headers, b - response body as string, j - response body JSON string converted to PSCustomObject, x - response body XML converted to XML object. In various circumstances, the text printed to the screen will be coloured according to your shell settings, and will adapt accordingly.
+.PARAMETER Http1
+Use HTTP/1.0
+.PARAMETER Http11
+Use HTTP/1.1
+.PARAMETER Http2
+Use HTTP/2
+.PARAMETER Http3
+Use HTTP/3
+.PARAMETER ClientCertificate
+String containing base64-encoded public key of your client certificate.
+.PARAMETER ClientCertificateFile
+File containing base64-encoded public key of your client certificate.
+.PARAMETER ClientKey
+String containing base64-encoded private key of your client certificate.
+.PARAMETER ClientKeyFile
+File containing base64-encoded private key of your client certificate.
+.PARAMETER RouteTo
+Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
+.PARAMETER AdditionalParams
+Placeholder parameter for all unnamed params (such as headers, query string parameters and cookies) that you might provide on the command line.
+#>
 function Invoke-Http {
     [CmdletBinding(DefaultParameterSetName = 'h2')]
     [Alias('web')]
