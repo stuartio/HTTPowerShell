@@ -548,27 +548,8 @@ function Invoke-Http {
                 Write-Error "When using -ClientCertificate or -ClientCertificateFile you must provide one of: -ClientKey, -ClientKeyFile"
                 return
             }
-            if ($ClientCertificate) {
-                $CertificateContent = $ClientCertificate
-            }
-            elseif ($ClientCertificateFile) {
-                if (-not (Test-Path $ClientCertificateFile)) {
-                    Write-Error "ClientCertificateFile '$ClientCertificateFile' not found"
-                    return
-                }
-                $CertificateContent = Get-Content -Raw -Path $ClientCertificateFile
-            }
-            if ($ClientKey) {
-                $KeyContent = $ClientKey
-            }
-            elseif ($ClientKeyFile) {
-                if (-not (Test-Path $ClientKeyFile)) {
-                    Write-Error "ClientKeyFile '$ClientKeyFile' not found"
-                    return
-                }
-                $KeyContent = Get-Content -Raw -Path $ClientKeyFile
-            }
-            $IWRParams.Certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPem($CertificateContent, $KeyContent)
+            
+            $IWRParams.Certificate = $PSBoundParameters | Select-Object ClientCertificate, ClientCertificateFile, ClientKey, ClientKeyFile | Get-PFXFromPem
         }
 
         # Add -PassThru if OutFile present
