@@ -53,9 +53,6 @@
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules   = @(
         @{
-            ModuleName = 'Akamai.Common'; GUID = '5627ab61-2e2e-4af9-8035-5512d4a25093'; ModuleVersion = '2.2.0'; 
-        },
-        @{
             ModuleName = 'WriteColour'; GUID = '704cd14a-5f5e-46ae-887e-70dd29378136'; ModuleVersion = '0.1'; 
         }
     )
