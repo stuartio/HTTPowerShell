@@ -303,7 +303,6 @@ function Invoke-Http {
             'Accept-Encoding' = 'gzip,deflate'
             'Connection'      = 'keep-alive'
             'Content-Type'    = 'application/json'
-            'Host'            = $ParsedURI.Host
             'User-Agent'      = 'HttPowershell/0.0.1'
         }
 
@@ -424,7 +423,7 @@ function Invoke-Http {
         }
         $ParsedURI = [System.Uri] $Uri
 
-        ### Set forward host header
+        # Add host header
         $Headers['Host'] = $ParsedURI.Host
 
         ### RouteTo

@@ -14,8 +14,8 @@ function Write-Request {
     )
 
     $MethodFGColour = 'Green'
-    $HTTPVersionFGColour = 'DarkBlue'
+    $HTTPVersionFGColour = 'Green'
     $PathFGColour = 'DarkCyan'
 
-    Write-ColourOutput "|$MethodFGColour|$Method|!||$PathFGColour|$($ParsedUri.PathAndQuery)|!| |$HTTPVersionFGColour|HTTP|!|/|$HTTPVersionFGColour|$HttpVersion|!|"
+    Write-ColourOutput "|$MethodFGColour|$Method|!| |$PathFGColour|$($ParsedUri.PathAndQuery)|!| |$HTTPVersionFGColour|HTTP|!|/|$HTTPVersionFGColour|$HttpVersion|!|"
 }
