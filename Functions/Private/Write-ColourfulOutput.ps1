@@ -16,7 +16,11 @@ function Write-ColourfulOutput {
 
         [Parameter()]
         [string]
-        $StringColour = (Get-PSReadLineOption).StringColour
+        $StringColour = (Get-PSReadLineOption).StringColour,
+
+        [Parameter()]
+        [switch]
+        $Always
     )
 
     $Reset = $PSStyle.Reset
@@ -29,8 +33,13 @@ function Write-ColourfulOutput {
         'text/*' { Write-Output $Output }
         'multipart/form-data*' { Write-Output $Output }
         '' { Write-Output $Output } # For no content-type, try printing directly
-        default { 
-            Write-Output "-- Binary data in format '$KeyColour$ContentType$Reset' not shown in terminal --" 
+        default {
+            if ($Always) {
+                Write-Output $Output
+            }
+            else {
+                Write-Output "-- Binary data in format '$KeyColour$ContentType$Reset' not shown in terminal --" 
+            }
         }
     }
 }

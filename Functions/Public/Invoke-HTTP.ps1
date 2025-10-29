@@ -596,55 +596,46 @@ function Invoke-Http {
         
         ### ---- Response Output
         if ($Display) {
-            ### Parse response. Have to use raw as we want to show multiple items for when headers are duplicated
-            $RawResponse = $Response.RawContent -split "`r`n"
-            $ResponseHeaders = New-Object -TypeName System.Collections.Generic.List['HashTable']
-            for ($i = 1; $i -lt $RawResponse.count; $i++) {
-                if ($RawResponse[$i] -match $HeaderParamRegex) {
-                    $ResponseHeaders.Add(@{
-                            name  = $Matches[1]
-                            value = $RawResponse[$i].Replace($Matches[0], '').Trim()
-                        })
-                }
-                else {
-                    if ($RawResponse[$i] -eq '') {
-                        break
-                    }
-                    else {
-                        throw "Response header $($RepsonseContent[$i]) appears to be malformed"
-                    }
-                }
-            }
-            # Sort headers
-            $ResponseHeaders = $ResponseHeaders | Sort-Object -Property Name, Value
-            $ResponseContentType = $ResponseHeaders |
-            Where-Object { $_.name.ToLower() -eq 'content-type' } |
-            Select-Object -First 1 |
-            Select-Object -ExpandProperty value
-            # Assign response body
-            $ResponseBody = $Response.Content
-            # Handle byte[] response type
-            if ($ResponseBody -is 'byte[]') {
-                $ResponseBody = [System.Text.Encoding]::UTF8.GetString($ResponseBody)
-            }
+            $FormattedResponse = Format-Response -RawResponse $Response.RawContent
 
             ### Status
             if ($Display.contains('S')) {
-                Write-Output -ForegroundColor $HeaderForeGround $Response.StatusCode
+                Write-ColourOutput "|darkcyan|$($FormattedResponse.StatusCode)|!|"
             }
             if ($Display.contains('s')) {
-                Write-StatusCode $RawResponse[0]
+                Write-StatusCode $FormattedResponse.Status
             }
 
             ## Response Headers
             if ($Display.contains('h')) {
-                $ResponseHeaders | Write-ColourfulHeaders
+                $FormattedResponse.Headers | Write-ColourfulHeaders
                 Write-Output ""
+
+                foreach ($Part in $FormattedResponse.Parts) {
+                    Write-ColorHost "|green|Multi-Part Headers:|!|"
+                    $Part.Headers | Write-ColourfulHeaders
+                    # Add new line
+                    Write-Output ""
+                }
             }
             
             ## Response Body
             if ($Display.contains('b')) {
-                Write-ColourfulOutput -Output $ResponseBody -ContentType $ResponseContentType
+                if ($FormattedResponse.Body) {
+                    Write-ColourfulOutput -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType
+                    # Add new line
+                    Write-Output ""
+                }
+                
+                foreach ($Part in $FormattedResponse.Parts) {
+                    Write-ColorHost "|green|Multi-Part Body:|!|"
+                    Write-ColourfulOutput -Output $Part.Body -ContentType $Part.ContentType
+                    # Add new line
+                    Write-Output ""
+                }
+            }
+            if ($Display.contains('a')) {
+                Write-ColourfulOutput -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType
                 # Add new line
                 Write-Output ""
             }
