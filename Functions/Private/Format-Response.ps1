@@ -23,7 +23,6 @@ function Format-Response {
         if ($Line -Match $StatusPattern) {
             $StatusCode = $Matches[2]
             $Status = $Line
-            Write-Host "Status: $Status"
         }
         else {
             $HeaderName = ($Line -split ':')[0].Trim()

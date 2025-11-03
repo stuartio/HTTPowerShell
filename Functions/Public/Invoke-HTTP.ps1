@@ -32,7 +32,7 @@ File containing base64-encoded public key of your client certificate.
 String containing base64-encoded private key of your client certificate.
 .PARAMETER ClientKeyFile
 File containing base64-encoded private key of your client certificate.
-.PARAMETER RouteTo
+.PARAMETER Resolve
 Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
 .PARAMETER AdditionalParams
 Placeholder parameter for all unnamed params (such as headers, query string parameters and cookies) that you might provide on the command line.
@@ -92,12 +92,16 @@ function Invoke-Http {
         
         [Parameter()]
         [string]
-        $RouteTo,
+        $Resolve,
 
         [Parameter()]
         [Alias('d')]
         [string]
         $Display = 'shb',
+
+        [Parameter()]
+        [int[]]
+        $DisplayParts,
 
         [Parameter(ValueFromPipeline)]
         $Body,
@@ -339,7 +343,7 @@ function Invoke-Http {
                     $Headers.Remove($Matches[1])
                 }
                 else {
-                    $HeaderValue = ConvertTo-ASCII -InputObject $HeaderValue
+                    $HeaderValue = ConvertTo-UTF8 -InputObject $HeaderValue
                     $Headers[$Matches[1]] = $Param.Replace($Matches[0], '').Trim()
                 }
             }
@@ -426,9 +430,12 @@ function Invoke-Http {
         # Add host header
         $Headers['Host'] = $ParsedURI.Host
 
-        ### RouteTo
-        if ($RouteTo) {
-            $Uri = $Uri.Replace($ParsedURI.Host, $RouteTo)
+        ### Resolve
+        if ($Resolve) {
+            if ($Resolve.ToLower() -eq 'akamaistaging') {
+                $Resolve = Get-AkamaiStagingIP -Hostname $ParsedURI.Host
+            }
+            $Uri = $Uri.Replace($ParsedURI.Host, $Resolve)
         }
 
         ### Select protocol if not provided
@@ -482,6 +489,7 @@ function Invoke-Http {
         # Add additional params to IWRParams
         $NonIWRParams = @(
             'Display',
+            'DisplayParts',
             'http1',
             'http11',
             'http2',
@@ -493,7 +501,7 @@ function Invoke-Http {
             'ClientCertificateFile',
             'ClientKey',
             'ClientKeyFile',
-            'RouteTo',
+            'Resolve',
             'EdgeRCFile',
             'Section',
             'AccountSwitchKey'
@@ -611,9 +619,13 @@ function Invoke-Http {
                 $FormattedResponse.Headers | Write-ColourfulHeaders
                 Write-Output ""
 
-                foreach ($Part in $FormattedResponse.Parts) {
+                for ($p = 1; $p -le $FormattedResponse.Parts.count; $p++) {
+                    if ($null -ne $PSBoundParameters.DisplayParts -and $p -notin $DisplayParts ) {
+                        continue
+                    }
+
                     Write-ColorHost "|green|Multi-Part Headers:|!|"
-                    $Part.Headers | Write-ColourfulHeaders
+                    $FormattedResponse.Parts[$p - 1].Headers | Write-ColourfulHeaders
                     # Add new line
                     Write-Output ""
                 }
@@ -627,18 +639,41 @@ function Invoke-Http {
                     Write-Output ""
                 }
                 
-                foreach ($Part in $FormattedResponse.Parts) {
+                for ($p = 1; $p -le $FormattedResponse.Parts.count; $p++) {
+                    if ($null -ne $PSBoundParameters.DisplayParts -and $p -notin $DisplayParts ) {
+                        continue
+                    }
+                    
                     Write-ColorHost "|green|Multi-Part Body:|!|"
+                    $Part = $FormattedResponse.Parts[$p - 1]
                     Write-ColourfulOutput -Output $Part.Body -ContentType $Part.ContentType
                     # Add new line
                     Write-Output ""
                 }
             }
+
+            ## All
             if ($Display.contains('a')) {
-                Write-ColourfulOutput -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType
-                # Add new line
-                Write-Output ""
+                if ($FormattedResponse.Body) {
+                    Write-ColourfulOutput -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType -Always
+                    # Add new line
+                    Write-Output ""
+                }
+
+                foreach ($Part in $FormattedResponse.Parts) {
+                    Write-ColorHost "|green|Multi-Part Body:|!|"
+                    Write-ColourfulOutput -Output $Part.Body -ContentType $Part.ContentType -Always
+                    # Add new line
+                    Write-Output ""
+                }
             }
+
+            ## Raw
+            if ($Display.contains('r')) {
+                Write-Output $Response.RawContent
+            }
+
+            ## JSON Object
             if ($Display.contains('j')) {
                 try {
                     $BodyObject = $ResponseBody | ConvertFrom-Json
@@ -651,6 +686,8 @@ function Invoke-Http {
                 # Add new line
                 Write-Output ""
             }
+
+            ## XML Object
             if ($Display.contains('x')) {
                 try {
                     $BodyObject = [xml] $ResponseBody
