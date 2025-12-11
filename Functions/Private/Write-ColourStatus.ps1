@@ -1,28 +1,15 @@
-function Write-StatusCode {
+function Write-ColourStatus {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory)]
         [string]
         $RawStatus,
 
-        [Parameter()]
-        [string]
-        $HTTPVersionFGColour = (Get-PSReadLineOption).CommentColor,
-
-        [Parameter()]
-        [string]
-        $StatusCodeFGColour = (Get-PSReadLineOption).StringColour,
-
-        [Parameter()]
-        [string]
-        $StatusDescriptionFGColour = (Get-PSReadLineOption).StringColor,
-
-        [Parameter()]
-        [string]
-        $OtherColour = (Get-PSReadLineOption).ParameterColor
+        [Parameter(Mandatory)]
+        [object]
+        $ColourPalette
     )
 
-    $Reset = $PSStyle.Reset
     $StatusRegex = '(http|HTTP)\/([\d\.]+) ([\d]{3}) (.*)'
     $StatusMatch = Select-String -InputObject $RawStatus -Pattern $StatusRegex
     if ($StatusMatch) {
@@ -35,7 +22,7 @@ function Write-StatusCode {
             throw "Status code '$RawStatus' is in an unknown format"
         }
 
-        Write-Output "$HTTPVersionFGColour$HTTPPrefix$Reset/$HTTPVersionFGColour$HTTPVersion $StatusCodeFGColour$StatusCode$Reset $StatusDescription"
+        Write-ColourOutput "|$($ColourPalette.KeyColour)|$HTTPPrefix|!|/|$($ColourPalette.KeyColour)|$HTTPVersion |$($ColourPalette.NumberColour)|$StatusCode|!| $StatusDescription"
     }
     else {
         throw "Status code '$RawStatus' is in an unknown format"

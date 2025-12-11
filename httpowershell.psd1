@@ -53,7 +53,7 @@
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules   = @(
         @{
-            ModuleName = 'WriteColour'; GUID = '704cd14a-5f5e-46ae-887e-70dd29378136'; ModuleVersion = '0.1'; 
+            ModuleName = 'WriteColour'; GUID = '704cd14a-5f5e-46ae-887e-70dd29378136'; ModuleVersion = '0.4'; 
         }
     )
 

@@ -520,9 +520,11 @@ function Invoke-Http {
         $DefaultMethods = 'DEFAULT', 'DELETE', 'GET', 'HEAD', 'MERGE', 'OPTIONS', 'PATCH', 'POST', 'PUT', 'TRACE'
         if ($Method -in $DefaultMethods) {
             $IWRParams.Method = $Method
+            $IWRParams.Remove('CustomMethod')
         }
         else {
             $IWRParams.CustomMethod = $Method
+            $IWRParams.Remove('Method')
         }
 
         ### Parse Body
@@ -550,6 +552,9 @@ function Invoke-Http {
 
         #### ---- Request Output
         if ($Display) {
+            ## Process colour pallette
+            $ColourPalette = Get-ColourPalette
+
             ## Request Headers
             if ($Display.contains('H')) {
                 # Format headers hashtable into array of objects
@@ -558,7 +563,7 @@ function Invoke-Http {
                 }
 
                 Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
-                $RequestHeaders | Write-ColourfulHeaders
+                $RequestHeaders | Write-ColourHeaders -ColourPalette $ColourPalette
                 # Add new line
                 Write-Output ""
             }
@@ -566,7 +571,7 @@ function Invoke-Http {
             ### Request Body
             if ($Display.contains('B')) {
                 if ($RequestBody) {
-                    Write-ColourfulOutput -Output $RequestBody -ContentType $Headers['content-type']
+                    Write-ColourBody -Output $RequestBody -ContentType $Headers['content-type'] -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
                 }
@@ -608,15 +613,15 @@ function Invoke-Http {
 
             ### Status
             if ($Display.contains('S')) {
-                Write-ColourOutput "|darkcyan|$($FormattedResponse.StatusCode)|!|"
+                Write-ColourOutput "|$($ColourPalette.NumberColour)|$($FormattedResponse.StatusCode)|!|"
             }
             if ($Display.contains('s')) {
-                Write-StatusCode $FormattedResponse.Status
+                Write-ColourStatus $FormattedResponse.Status -ColourPalette $ColourPalette
             }
 
             ## Response Headers
             if ($Display.contains('h')) {
-                $FormattedResponse.Headers | Write-ColourfulHeaders
+                $FormattedResponse.Headers | Write-ColourHeaders -ColourPalette $ColourPalette
                 Write-Output ""
 
                 for ($p = 1; $p -le $FormattedResponse.Parts.count; $p++) {
@@ -624,8 +629,8 @@ function Invoke-Http {
                         continue
                     }
 
-                    Write-ColorHost "|green|Multi-Part Headers:|!|"
-                    $FormattedResponse.Parts[$p - 1].Headers | Write-ColourfulHeaders
+                    Write-ColourOutput "|green|Multi-Part Headers:|!|"
+                    $FormattedResponse.Parts[$p - 1].Headers | Write-ColourHeaders -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
                 }
@@ -634,7 +639,7 @@ function Invoke-Http {
             ## Response Body
             if ($Display.contains('b')) {
                 if ($FormattedResponse.Body) {
-                    Write-ColourfulOutput -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType
+                    Write-ColourBody -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
                 }
@@ -644,9 +649,9 @@ function Invoke-Http {
                         continue
                     }
                     
-                    Write-ColorHost "|green|Multi-Part Body:|!|"
+                    Write-ColourOutput "|green|Multi-Part Body:|!|"
                     $Part = $FormattedResponse.Parts[$p - 1]
-                    Write-ColourfulOutput -Output $Part.Body -ContentType $Part.ContentType
+                    Write-ColourBody -Output $Part.Body -ContentType $Part.ContentType -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
                 }
@@ -655,14 +660,14 @@ function Invoke-Http {
             ## All
             if ($Display.contains('a')) {
                 if ($FormattedResponse.Body) {
-                    Write-ColourfulOutput -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType -Always
+                    Write-ColourBody -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType -Always -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
                 }
 
                 foreach ($Part in $FormattedResponse.Parts) {
-                    Write-ColorHost "|green|Multi-Part Body:|!|"
-                    Write-ColourfulOutput -Output $Part.Body -ContentType $Part.ContentType -Always
+                    Write-ColourOutput "|green|Multi-Part Body:|!|"
+                    Write-ColourBody -Output $Part.Body -ContentType $Part.ContentType -Always -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
                 }

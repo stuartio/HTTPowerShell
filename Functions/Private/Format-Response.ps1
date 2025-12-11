@@ -21,7 +21,7 @@ function Format-Response {
     # ---- Parse header lines
     foreach ($Line in $HeaderLines) {
         if ($Line -Match $StatusPattern) {
-            $StatusCode = $Matches[2]
+            $StatusCode = [int] $Matches[2]
             $Status = $Line
         }
         else {
@@ -35,7 +35,7 @@ function Format-Response {
     }
 
     # ---- Sort Headers
-    $Headers = $Headers | Sort-Object -Property Name
+    $Headers = $Headers | Sort-Object -Property Name, Value
 
     # ---- Determine Content-Type
     $ContentType = $Headers |

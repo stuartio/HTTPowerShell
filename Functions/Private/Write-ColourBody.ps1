@@ -1,4 +1,4 @@
-function Write-ColourfulOutput {
+function Write-ColourBody {
     Param(
         [Parameter(Mandatory)]
         [AllowEmptyString()]
@@ -10,23 +10,17 @@ function Write-ColourfulOutput {
         [string]
         $ContentType,
 
-        [Parameter()]
-        [string]
-        $KeyColour = (Get-PSReadLineOption).CommentColor,
-
-        [Parameter()]
-        [string]
-        $StringColour = (Get-PSReadLineOption).StringColour,
+        [Parameter(Mandatory)]
+        [object]
+        $ColourPalette,
 
         [Parameter()]
         [switch]
         $Always
     )
 
-    $Reset = $PSStyle.Reset
-
     switch -wildcard ($ContentType) {
-        'application/*json*' { Write-ColourfulJSON -JSON $Output }
+        'application/*json*' { Write-ColourJSON -JSON $Output -ColourPalette $ColourPalette }
         'application/*xml*' { Write-Output $Output } # TODO: Write pretty handler
         'application/*html*' { Write-Output $Output } # TODO: Write pretty handler
         'application/x-mpegURL' { Write-Output $Output } # TODO: Write pretty handler
@@ -38,7 +32,7 @@ function Write-ColourfulOutput {
                 Write-Output $Output
             }
             else {
-                Write-Output "-- Binary data in format '$KeyColour$ContentType$Reset' not shown in terminal --" 
+                Write-ColourOutput "-- Binary data in format '|$($ColourPalette.KeyColour)|$ContentType|!|' not shown in terminal --" 
             }
         }
     }
