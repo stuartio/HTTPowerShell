@@ -10,6 +10,6 @@ function Write-ColourHeaders {
     )
 
     Process {
-        Write-ColourOutput "|$($ColourPalette.KeyColour)|$($Header.Name)|!|: $($Header.Value)"
+        Write-ColourOutput "|-$($ColourPalette.KeyColour)-|$($Header.Name)|-!-|: $($Header.Value)"
     }
 }

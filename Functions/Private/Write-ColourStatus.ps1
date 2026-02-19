@@ -22,7 +22,7 @@ function Write-ColourStatus {
             throw "Status code '$RawStatus' is in an unknown format"
         }
 
-        Write-ColourOutput "|$($ColourPalette.KeyColour)|$HTTPPrefix|!|/|$($ColourPalette.KeyColour)|$HTTPVersion |$($ColourPalette.NumberColour)|$StatusCode|!| $StatusDescription"
+        Write-ColourOutput "|-$($ColourPalette.CommentColour)-|$HTTPPrefix|-!-|/|-$($ColourPalette.CommentColour)-|$HTTPVersion |-$($ColourPalette.NumberColour)-|$StatusCode|-!-| $StatusDescription"
     }
     else {
         throw "Status code '$RawStatus' is in an unknown format"

@@ -23,16 +23,18 @@ function Write-ColourBody {
         'application/*json*' { Write-ColourJSON -JSON $Output -ColourPalette $ColourPalette }
         'application/*xml*' { Write-Output $Output } # TODO: Write pretty handler
         'application/*html*' { Write-Output $Output } # TODO: Write pretty handler
+        'application/*javascript*' { Write-Output $Output } # TODO: Write pretty handler
         'application/x-mpegURL' { Write-Output $Output } # TODO: Write pretty handler
-        'text/*' { Write-Output $Output }
         'multipart/form-data*' { Write-Output $Output }
+        'image/svg*' { Write-Output $Output } # TODO: Write XML handler
+        'text/*' { Write-Output $Output }
         '' { Write-Output $Output } # For no content-type, try printing directly
         default {
             if ($Always) {
                 Write-Output $Output
             }
             else {
-                Write-ColourOutput "-- Binary data in format '|$($ColourPalette.KeyColour)|$ContentType|!|' not shown in terminal --" 
+                Write-ColourOutput "-- Binary data in format '|-$($ColourPalette.KeyColour)-|$ContentType|-!-|' not shown in terminal --" 
             }
         }
     }

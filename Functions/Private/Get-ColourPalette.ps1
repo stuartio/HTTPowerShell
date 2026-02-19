@@ -7,11 +7,15 @@ function Get-ColourPalette {
 
         [Parameter()]
         [string]
-        $StringColour = (Get-PSReadLineOption).TypeColor,
+        $StringColour = (Get-PSReadLineOption).ListPredictionColor,
 
         [Parameter()]
         [string]
-        $NumberColour = (Get-PSReadLineOption).ListPredictionColor,
+        $NumberColour = (Get-PSReadLineOption).NumberColor,
+        
+        [Parameter()]
+        [string]
+        $CommentColour = (Get-PSReadLineOption).CommentColor,
 
         [Parameter()]
         [string]
@@ -19,10 +23,11 @@ function Get-ColourPalette {
     )
 
     $ColourPalette = [PSCustomObject] @{
-        KeyColour    = Convert-ANSIColour $KeyColour
-        StringColour = Convert-ANSIColour $StringColour
-        NumberColour = Convert-ANSIColour $NumberColour
-        OtherColour  = Convert-ANSIColour $OtherColour
+        KeyColour     = $KeyColour.SubString(2, 2)
+        StringColour  = $StringColour.SubString(2, 2)
+        NumberColour  = $NumberColour.SubString(2, 2)
+        CommentColour = $CommentColour.SubString(2, 2)
+        OtherColour   = $OtherColour.SubString(2, 2)
     }
 
     return $ColourPalette

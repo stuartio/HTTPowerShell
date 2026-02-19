@@ -562,7 +562,7 @@ function Invoke-Http {
                     [PSCustomObject] @{ Name = $_; Value = $Headers[$_] }
                 }
 
-                Write-Request -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI
+                Write-ColourRequest -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI -ColourPalette $ColourPalette
                 $RequestHeaders | Write-ColourHeaders -ColourPalette $ColourPalette
                 # Add new line
                 Write-Output ""
@@ -573,7 +573,7 @@ function Invoke-Http {
                 if ($RequestBody) {
                     Write-ColourBody -Output $RequestBody -ContentType $Headers['content-type'] -ColourPalette $ColourPalette
                     # Add new line
-                    Write-Output ""
+                    # Write-Output ""
                 }
             }
         }
@@ -611,9 +611,14 @@ function Invoke-Http {
         if ($Display) {
             $FormattedResponse = Format-Response -RawResponse $Response.RawContent
 
+            # Replace body element if -OutFile specified
+            if ($OutFile -and -not $PSBoundParameters.Display) {
+                $Display = $Display.replace("b", "")
+            }
+
             ### Status
             if ($Display.contains('S')) {
-                Write-ColourOutput "|$($ColourPalette.NumberColour)|$($FormattedResponse.StatusCode)|!|"
+                Write-ColourOutput "|-$($ColourPalette.NumberColour)-|$($FormattedResponse.StatusCode)|-!-|"
             }
             if ($Display.contains('s')) {
                 Write-ColourStatus $FormattedResponse.Status -ColourPalette $ColourPalette
@@ -629,7 +634,7 @@ function Invoke-Http {
                         continue
                     }
 
-                    Write-ColourOutput "|green|Multi-Part Headers:|!|"
+                    Write-ColourOutput "|-green-|Multi-Part Headers:|-!-|"
                     $FormattedResponse.Parts[$p - 1].Headers | Write-ColourHeaders -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
@@ -641,7 +646,7 @@ function Invoke-Http {
                 if ($FormattedResponse.Body) {
                     Write-ColourBody -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType -ColourPalette $ColourPalette
                     # Add new line
-                    Write-Output ""
+                    # Write-Output ""
                 }
                 
                 for ($p = 1; $p -le $FormattedResponse.Parts.count; $p++) {
@@ -649,27 +654,29 @@ function Invoke-Http {
                         continue
                     }
                     
-                    Write-ColourOutput "|green|Multi-Part Body:|!|"
+                    Write-ColourOutput "|-green-|Multi-Part Body:|-!-|"
                     $Part = $FormattedResponse.Parts[$p - 1]
                     Write-ColourBody -Output $Part.Body -ContentType $Part.ContentType -ColourPalette $ColourPalette
                     # Add new line
-                    Write-Output ""
+                    # Write-Output ""
                 }
             }
 
             ## All
             if ($Display.contains('a')) {
                 if ($FormattedResponse.Body) {
+                    Write-Host "Main body" -ForegroundColor green
                     Write-ColourBody -Output $FormattedResponse.Body -ContentType $FormattedResponse.ContentType -Always -ColourPalette $ColourPalette
                     # Add new line
-                    Write-Output ""
+                    # Write-Output ""
                 }
-
+                
                 foreach ($Part in $FormattedResponse.Parts) {
-                    Write-ColourOutput "|green|Multi-Part Body:|!|"
+                    Write-Host "Multi-part body" -ForegroundColor green
+                    Write-ColourOutput "|-green-|Multi-Part Body:|-!-|"
                     Write-ColourBody -Output $Part.Body -ContentType $Part.ContentType -Always -ColourPalette $ColourPalette
                     # Add new line
-                    Write-Output ""
+                    # Write-Output ""
                 }
             }
 
@@ -681,34 +688,34 @@ function Invoke-Http {
             ## JSON Object
             if ($Display.contains('j')) {
                 try {
-                    $BodyObject = $ResponseBody | ConvertFrom-Json
+                    $BodyObject = $FormattedResponse.Body | ConvertFrom-Json
                     Write-Output $BodyObject
                 }
                 catch {
                     Write-Debug "Failed to convert response body of type '$ResponseContentType' to object"
-                    Write-Output $ResponseBody
+                    Write-Output $FormattedResponse.Body
                 }
                 # Add new line
-                Write-Output ""
+                # Write-Output ""
             }
 
             ## XML Object
             if ($Display.contains('x')) {
                 try {
-                    $BodyObject = [xml] $ResponseBody
+                    $BodyObject = [xml] $FormattedResponse.Body
                     Write-Output $BodyObject
                 }
                 catch {
                     Write-Debug "Failed to convert response body of type '$ResponseContentType' to object"
-                    Write-Output $ResponseBody
+                    Write-Output $FormattedResponse.Body
                 }
                 # Add new line
-                Write-Output ""
+                # Write-Output ""
             }
 
             ## Response Time
             if ($Display.Contains('t')) {
-                Write-Output "$StringColour`Total Milliseconds$Reset`: $($ResponseTime.TotalMilliseconds)"
+                Write-ColourOutput "|-$($ColourPalette.StringColour)-|Total Milliseconds|-!-|: $($ResponseTime.TotalMilliseconds)"
             }
             if ($Display.Contains('T')) {
                 $ResponseTime
