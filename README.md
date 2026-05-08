@@ -20,7 +20,7 @@ Import-Module src/HTTPowershell
 
 Once imported there is a single public function named `Invoke-HTTP` which is aliased to `web` for simplicity. The alias will be used in all examples, becuase I think it is cooler :-) .
 
-The simplest use case to make a request simply requires, like this
+The simplest use case to make a request simply requires, like this. I can make this repo way better, please merge my PR.
 
 ```powershell
 web https://httpbin.org
