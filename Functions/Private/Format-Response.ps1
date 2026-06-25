@@ -1,7 +1,11 @@
 function Format-Response {
     Param(
         [Parameter(Mandatory)]
-        $RawResponse
+        $RawResponse,
+
+        [Parameter()]
+        [string[]]
+        $DisplayHeaders
     )
 
     # ---- Handle byte[] response type
@@ -27,6 +31,11 @@ function Format-Response {
         else {
             $HeaderName = ($Line -split ':')[0].Trim()
             $HeaderValue = ($Line -split ':', 2)[1].Trim()
+
+            if ($DisplayHeaders.Count -gt 0 -and $HeaderName -notin $DisplayHeaders) {
+                Write-Debug "Skipping header: $HeaderName"
+                continue
+            }
             $Headers.Add( [PSCustomObject] @{
                     Name  = $HeaderName
                     Value = $HeaderValue

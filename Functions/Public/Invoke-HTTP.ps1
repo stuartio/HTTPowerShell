@@ -16,6 +16,10 @@ Request Method. If a standard HTTP Method the Invoke-WebRequest `Method` paramet
 Request body, either as PSCustomObject, hashtable or string. Non-string objects are converted to JSON strings.
 .PARAMETER Display
 Format to display input and output elements. Can contain one or more of the following options: H - request headers, B - request body, s - response status code and description, S - response status code only, h - response headers, b - response body as string, j - response body JSON string converted to PSCustomObject, x - response body XML converted to XML object. In various circumstances, the text printed to the screen will be coloured according to your shell settings, and will adapt accordingly.
+.PARAMETER DisplayParts
+Array of integers indicating which multi-part response parts to display. If not specified, all parts will be displayed. If specified, only the parts in the array will be displayed.
+.PARAMETER DisplayHeaders
+Array of strings indicating which response headers to display. If not specified, all headers will be displayed. If specified, only the headers in the array will be displayed.
 .PARAMETER Http1
 Use HTTP/1.0
 .PARAMETER Http11
@@ -36,6 +40,14 @@ File containing base64-encoded private key of your client certificate.
 Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
 .PARAMETER AdditionalParams
 Placeholder parameter for all unnamed params (such as headers, query string parameters and cookies) that you might provide on the command line.
+.PARAMETER Authentication
+Authentication type to use, either 'None', 'Bearer', 'Basic', 'OAuth', or 'EdgeGrid'. If set to 'Basic' you must provide your username and password with the -Credentials parameter. If set to 'EdgeGrid', the EdgeGrid authentication header will be calculated and added to the request. This requires the additional parameters EdgeRCFile, Section and optionally AccountSwitchKey to be provided. For other authentication methods, see the associated help with Invoke-WebRequest.
+.PARAMETER EdgeRCFile
+Path to your .edgerc file containing your EdgeGrid credentials when the value of -Authentication is 'EdgeGrid'. If not provided, the default location of ~/.edgerc will be used.
+.PARAMETER Section
+Section of your .edgerc file to use when the value of -Authentication is 'EdgeGrid'. If not provided, selected section will be 'default'.
+.PARAMETER AccountSwitchKey
+Account Switch Key to use when the value of -Authentication is 'EdgeGrid'.
 #>
 function Invoke-Http {
     [CmdletBinding(DefaultParameterSetName = 'h2')]
@@ -102,6 +114,10 @@ function Invoke-Http {
         [Parameter()]
         [int[]]
         $DisplayParts,
+
+        [Parameter()]
+        [string[]]
+        $DisplayHeaders,
 
         [Parameter(ValueFromPipeline)]
         $Body,
@@ -254,7 +270,7 @@ function Invoke-Http {
     )
 
     dynamicparam {
-        if ($Authentication -eq 'EdgeGrid') {
+        if ($Authentication -and $Authentication.ToLower() -eq 'edgegrid') {
             $paramDictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
             
             $EdgeRCAttributeCollection = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
@@ -386,25 +402,25 @@ function Invoke-Http {
         }
 
         ### Calculate auth header if authentication == edgegrid
-        if ($Authentication -eq 'EdgeGrid') {
+        if ($Authentication -and $Authentication.ToLower() -eq 'edgegrid') {
             $CredentialParams = @{
                 EdgeRCFile       = $PSBoundParameters.EdgeRCFile
                 Section          = $PSBoundParameters.Section
                 AccountSwitchKey = $PSBoundParameters.AccountSwitchKey
             }
-            $Credentials = Get-AkamaiCredentials @CredentialParams
-            $AkamaiAuthParams = @{
+            $Credentials = Get-EdgeGridCredentials @CredentialParams
+            $EdgegridAuthParams = @{
                 Credentials  = $Credentials
                 Method       = $Method
                 ExpandedPath = $Uri
             }
 
-            if ($RequestBody) { $AkamaiAuthParams.Body = $RequestBody }
-            if ($InFile) { $AkamaiAuthParams.InputFile = $InputFile }
+            if ($RequestBody) { $EdgegridAuthParams.Body = $RequestBody }
+            if ($InFile) { $EdgegridAuthParams.InputFile = $InputFile }
 
-            $AkamaiAuthHeader = Get-AkamaiAuthHeader @AkamaiAuthParams
-            Write-Debug "Akamai auth header: $AkamaiAuthHeader"
-            $Headers['Authorization'] = $AkamaiAuthHeader
+            $EdgeGridAuthHeader = Get-EdgeGridAuthHeader @EdgegridAuthParams
+            Write-Debug "EdgeGrid auth header: $EdgeGridAuthHeader"
+            $Headers['Authorization'] = $EdgeGridAuthHeader
 
             ## Add ASK
             if ($Credentials.AccountSwitchKey) {
@@ -490,6 +506,7 @@ function Invoke-Http {
         $NonIWRParams = @(
             'Display',
             'DisplayParts',
+            'DisplayHeaders',
             'http1',
             'http11',
             'http2',
@@ -609,7 +626,7 @@ function Invoke-Http {
         
         ### ---- Response Output
         if ($Display) {
-            $FormattedResponse = Format-Response -RawResponse $Response.RawContent
+            $FormattedResponse = Format-Response -RawResponse $Response.RawContent -DisplayHeaders $DisplayHeaders
 
             # Replace body element if -OutFile specified
             if ($OutFile -and -not $PSBoundParameters.Display) {
