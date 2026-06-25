@@ -62,6 +62,7 @@ $Params = @{
     CmdletsToExport   = @()
     Copyright         = '(c) 2025 Akamai Technologies. All rights reserved.'
     Author            = 'Akamai Technologies Ltd.'
+    RequiredModules   = @('WriteColour')
 }
     
 if ($Version) {

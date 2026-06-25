@@ -51,7 +51,7 @@ PowerShellVersion = '5.1.0'
 # ProcessorArchitecture = ''
 
 # Modules that must be imported into the global environment prior to importing this module
-RequiredModules = @(@{ModuleName = 'WriteColour'; GUID = '704cd14a-5f5e-46ae-887e-70dd29378136'; ModuleVersion = '0.4'; })
+RequiredModules = @('WriteColour')
 
 # Assemblies that must be loaded prior to importing this module
 # RequiredAssemblies = @()
