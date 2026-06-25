@@ -1,17 +1,17 @@
-<#
-.SYNOPSIS
-Resolve DNS request from Google's DoH
-.DESCRIPTION
-Make a simple DNS request to Google's DoH server, with optional type
-.NOTES
-Author: S Macleod
-Date: 29/10/25
-.PARAMETER Name
-Hostname to resolve
-.PARAMETER Type
-DNS Type to use
-#>
 function Resolve-GoogleDNS {
+    <#
+    .SYNOPSIS
+    Resolve DNS request from Google's DoH
+    .DESCRIPTION
+    Make a simple DNS request to Google's DoH server, with optional type
+    .NOTES
+    Author: S Macleod
+    Date: 29/10/25
+    .PARAMETER Name
+    Hostname to resolve
+    .PARAMETER Type
+    DNS Type to use
+    #>
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory, Position = 0, ValueFromPipeline)]

@@ -1,15 +1,15 @@
-<#
-.SYNOPSIS
-Resolve hostname to Akamai Staging Network
-.DESCRIPTION
-Resolves hostname's CNAME chain to determine local Akamai staging IP
-.NOTES
-Author: S MAcleod
-Date: 29/10/25
-.PARAMETER Hostname
-Hostname to resolve
-#>
 function Get-AkamaiStagingIP {
+    <#
+    .SYNOPSIS
+    Resolve hostname to Akamai Staging Network
+    .DESCRIPTION
+    Resolves hostname's CNAME chain to determine local Akamai staging IP
+    .NOTES
+    Author: S MAcleod
+    Date: 29/10/25
+    .PARAMETER Hostname
+    Hostname to resolve
+    #>
     [CmdletBinding()]
     Param (
         [Parameter(Mandatory)]

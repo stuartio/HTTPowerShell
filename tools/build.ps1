@@ -40,8 +40,8 @@ $PublicFiles | ForEach-Object {
 # Write psm1 content to new file
 $PSM1Content | Set-Content -Path $ModuleFile -NoNewline -Force -Encoding UTF8
 
-# Import module to get all functions
-Import-Module $DataFile -Force
+# Dot source the module file to get aliases
+Get-Content -Raw $ModuleFile | Invoke-Expression
     
 foreach ($File in $PublicFiles) {
     try {
@@ -73,8 +73,11 @@ Update-ModuleManifest @Params
 
 
 # Finally remove all modules to force reload of new data from saved file
-Remove-Module $ModuleName
-Import-Module $DataFile -Force
+$ModuleLoaded = Get-Module $ModuleName
+if ($ModuleLoaded) {
+    Remove-Module $ModuleName
+}
 
+Import-Module $ModuleFile -Force
 Write-Host -ForegroundColor Green 'Process complete'
 

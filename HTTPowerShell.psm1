@@ -109,18 +109,18 @@ function Format-Response {
 
     return $FormattedResponse
 }
-<#
-.SYNOPSIS
-Resolve hostname to Akamai Staging Network
-.DESCRIPTION
-Resolves hostname's CNAME chain to determine local Akamai staging IP
-.NOTES
-Author: S MAcleod
-Date: 29/10/25
-.PARAMETER Hostname
-Hostname to resolve
-#>
 function Get-AkamaiStagingIP {
+    <#
+    .SYNOPSIS
+    Resolve hostname to Akamai Staging Network
+    .DESCRIPTION
+    Resolves hostname's CNAME chain to determine local Akamai staging IP
+    .NOTES
+    Author: S MAcleod
+    Date: 29/10/25
+    .PARAMETER Hostname
+    Hostname to resolve
+    #>
     [CmdletBinding()]
     Param (
         [Parameter(Mandatory)]
@@ -520,20 +520,20 @@ function Get-PFXFromPem {
         return $PFX
     }
 }
-<#
-.SYNOPSIS
-Resolve DNS request from Google's DoH
-.DESCRIPTION
-Make a simple DNS request to Google's DoH server, with optional type
-.NOTES
-Author: S Macleod
-Date: 29/10/25
-.PARAMETER Name
-Hostname to resolve
-.PARAMETER Type
-DNS Type to use
-#>
 function Resolve-GoogleDNS {
+    <#
+    .SYNOPSIS
+    Resolve DNS request from Google's DoH
+    .DESCRIPTION
+    Make a simple DNS request to Google's DoH server, with optional type
+    .NOTES
+    Author: S Macleod
+    Date: 29/10/25
+    .PARAMETER Name
+    Hostname to resolve
+    .PARAMETER Type
+    DNS Type to use
+    #>
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
@@ -721,58 +721,58 @@ function Write-ColourStatus {
         throw "Status code '$RawStatus' is in an unknown format"
     }
 }
-<#
-.SYNOPSIS
-Make an HTTP request and return the output in the desired format.
-.DESCRIPTION
-Create an HTTP request with user-friendly options for headers, queries and cookies and display the response in the given format. Parameters will result in a call to Invoke-WebRequest, so all IWR parameters are also supported. Note: these may vary based on your version of PowerShell, and will not be validated.
-Parameters SkipHeaderValidation and SkipHttpError check are defaulted to $true, and MaximumRedirection is set to 0 so redirects are not chased by default. These can be overridden by supplied parameters if required.
-.NOTES
-Author: Stuart Macleod (@stuartio)
-.PARAMETER Help
-Show help and exit
-.PARAMETER Uri
-Request URI
-.PARAMETER Method
-Request Method. If a standard HTTP Method the Invoke-WebRequest `Method` parameter will be used. Otherwise the method will be passed to `CustomMethod`. Defaults to 'GET'
-.PARAMETER Body
-Request body, either as PSCustomObject, hashtable or string. Non-string objects are converted to JSON strings.
-.PARAMETER Display
-Format to display input and output elements. Can contain one or more of the following options: H - request headers, B - request body, s - response status code and description, S - response status code only, h - response headers, b - response body as string, j - response body JSON string converted to PSCustomObject, x - response body XML converted to XML object. In various circumstances, the text printed to the screen will be coloured according to your shell settings, and will adapt accordingly.
-.PARAMETER DisplayParts
-Array of integers indicating which multi-part response parts to display. If not specified, all parts will be displayed. If specified, only the parts in the array will be displayed.
-.PARAMETER DisplayHeaders
-Array of strings indicating which response headers to display. If not specified, all headers will be displayed. If specified, only the headers in the array will be displayed.
-.PARAMETER Http1
-Use HTTP/1.0
-.PARAMETER Http11
-Use HTTP/1.1
-.PARAMETER Http2
-Use HTTP/2
-.PARAMETER Http3
-Use HTTP/3
-.PARAMETER ClientCertificate
-String containing base64-encoded public key of your client certificate.
-.PARAMETER ClientCertificateFile
-File containing base64-encoded public key of your client certificate.
-.PARAMETER ClientKey
-String containing base64-encoded private key of your client certificate.
-.PARAMETER ClientKeyFile
-File containing base64-encoded private key of your client certificate.
-.PARAMETER Resolve
-Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
-.PARAMETER AdditionalParams
-Placeholder parameter for all unnamed params (such as headers, query string parameters and cookies) that you might provide on the command line.
-.PARAMETER Authentication
-Authentication type to use, either 'None', 'Bearer', 'Basic', 'OAuth', or 'EdgeGrid'. If set to 'Basic' you must provide your username and password with the -Credentials parameter. If set to 'EdgeGrid', the EdgeGrid authentication header will be calculated and added to the request. This requires the additional parameters EdgeRCFile, Section and optionally AccountSwitchKey to be provided. For other authentication methods, see the associated help with Invoke-WebRequest.
-.PARAMETER EdgeRCFile
-Path to your .edgerc file containing your EdgeGrid credentials when the value of -Authentication is 'EdgeGrid'. If not provided, the default location of ~/.edgerc will be used.
-.PARAMETER Section
-Section of your .edgerc file to use when the value of -Authentication is 'EdgeGrid'. If not provided, selected section will be 'default'.
-.PARAMETER AccountSwitchKey
-Account Switch Key to use when the value of -Authentication is 'EdgeGrid'.
-#>
 function Invoke-Http {
+    <#
+    .SYNOPSIS
+    Make an HTTP request and return the output in the desired format.
+    .DESCRIPTION
+    Create an HTTP request with user-friendly options for headers, queries and cookies and display the response in the given format. Parameters will result in a call to Invoke-WebRequest, so all IWR parameters are also supported. Note: these may vary based on your version of PowerShell, and will not be validated.
+    Parameters SkipHeaderValidation and SkipHttpError check are defaulted to $true, and MaximumRedirection is set to 0 so redirects are not chased by default. These can be overridden by supplied parameters if required.
+    .NOTES
+    Author: Stuart Macleod (@stuartio)
+    .PARAMETER Help
+    Show help and exit
+    .PARAMETER Uri
+    Request URI
+    .PARAMETER Method
+    Request Method. If a standard HTTP Method the Invoke-WebRequest `Method` parameter will be used. Otherwise the method will be passed to `CustomMethod`. Defaults to 'GET'
+    .PARAMETER Body
+    Request body, either as PSCustomObject, hashtable or string. Non-string objects are converted to JSON strings.
+    .PARAMETER Display
+    Format to display input and output elements. Can contain one or more of the following options: H - request headers, B - request body, s - response status code and description, S - response status code only, h - response headers, b - response body as string, j - response body JSON string converted to PSCustomObject, x - response body XML converted to XML object. In various circumstances, the text printed to the screen will be coloured according to your shell settings, and will adapt accordingly.
+    .PARAMETER DisplayParts
+    Array of integers indicating which multi-part response parts to display. If not specified, all parts will be displayed. If specified, only the parts in the array will be displayed.
+    .PARAMETER DisplayHeaders
+    Array of strings indicating which response headers to display. If not specified, all headers will be displayed. If specified, only the headers in the array will be displayed.
+    .PARAMETER Http1
+    Use HTTP/1.0
+    .PARAMETER Http11
+    Use HTTP/1.1
+    .PARAMETER Http2
+    Use HTTP/2
+    .PARAMETER Http3
+    Use HTTP/3
+    .PARAMETER ClientCertificate
+    String containing base64-encoded public key of your client certificate.
+    .PARAMETER ClientCertificateFile
+    File containing base64-encoded public key of your client certificate.
+    .PARAMETER ClientKey
+    String containing base64-encoded private key of your client certificate.
+    .PARAMETER ClientKeyFile
+    File containing base64-encoded private key of your client certificate.
+    .PARAMETER Resolve
+    Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
+    .PARAMETER AdditionalParams
+    Placeholder parameter for all unnamed params (such as headers, query string parameters and cookies) that you might provide on the command line.
+    .PARAMETER Authentication
+    Authentication type to use, either 'None', 'Bearer', 'Basic', 'OAuth', or 'EdgeGrid'. If set to 'Basic' you must provide your username and password with the -Credentials parameter. If set to 'EdgeGrid', the EdgeGrid authentication header will be calculated and added to the request. This requires the additional parameters EdgeRCFile, Section and optionally AccountSwitchKey to be provided. For other authentication methods, see the associated help with Invoke-WebRequest.
+    .PARAMETER EdgeRCFile
+    Path to your .edgerc file containing your EdgeGrid credentials when the value of -Authentication is 'EdgeGrid'. If not provided, the default location of ~/.edgerc will be used.
+    .PARAMETER Section
+    Section of your .edgerc file to use when the value of -Authentication is 'EdgeGrid'. If not provided, selected section will be 'default'.
+    .PARAMETER AccountSwitchKey
+    Account Switch Key to use when the value of -Authentication is 'EdgeGrid'.
+    #>
     [CmdletBinding(DefaultParameterSetName = 'h2')]
     [Alias('web')]
     Param(
