@@ -20,7 +20,7 @@ function Format-Response {
     $ResponseComponents = $RawResponse -split "`r?`n`r?`n", 2
     $RawHeaders = $ResponseComponents[0].Trim()
     $Body = $ResponseComponents[1].Trim()
-    $HeaderLines = $RawHeaders -split "`r`n" | Where-Object { $_ -ne '' }
+    $HeaderLines = $RawHeaders -split "`r?`n" | Where-Object { $_ -ne '' }
 
     # ---- Parse header lines
     foreach ($Line in $HeaderLines) {
