@@ -1,7 +1,7 @@
 Describe "Invoke-HTTP Tests" {
     BeforeAll {
         # Import the module or script containing Invoke-HTTP
-        Import-Module "$PSScriptRoot\..\httpowershell.psd1" -Force
+        Import-Module "$PSScriptRoot\..\HTTPowerShell.psd1" -Force
         $TestHost = "httpbun.com"
         $TestURL = "https://$TestHost"
         # Disable WriteColour colours, as it screws up the validation.
