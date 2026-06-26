@@ -471,6 +471,27 @@ function Get-EdgegridCredentials {
     throw "Error: Credentials could not be loaded from either; session, environment variables or edgerc file '$EdgeRCFile'"
 
 }
+function Get-EncryptedMessage {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory)]
+        [string]
+        $Secret,
+
+        [Parameter(Mandatory)]
+        [string]
+        $Message
+    )
+
+    [byte[]] $KeyByte = [System.Text.Encoding]::UTF8.GetBytes($Secret)
+    [byte[]] $MessageBytes = [System.Text.Encoding]::UTF8.GetBytes($Message)
+    $HMAC = new-object System.Security.Cryptography.HMACSHA256((, $keyByte))
+    [byte[]] $HashMessage = $HMAC.ComputeHash($MessageBytes)
+    $EncryptedMessage = [System.Convert]::ToBase64String($HashMessage)
+
+    return $EncryptedMessage
+}
+
 function Get-PFXFromPem {
     Param (
         [Parameter(ValueFromPipelineByPropertyName)]
@@ -487,7 +508,11 @@ function Get-PFXFromPem {
         
         [Parameter(ValueFromPipelineByPropertyName)]
         [string]
-        $ClientKeyFile
+        $ClientKeyFile,
+        
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [string]
+        $ClientKeyPassword
     )
 
     process {
@@ -496,9 +521,10 @@ function Get-PFXFromPem {
         }
         elseif ($ClientCertificateFile) {
             if (-not (Test-Path $ClientCertificateFile)) {
-                Write-Error "ClientCertificateFile '$ClientCertificateFile' not found"
+                Write-Error "Client certificate file '$ClientCertificateFile' not found"
                 return
             }
+            Write-Debug "Reading certificate from file: $ClientCertificateFile"
             $CertificateContent = Get-Content -Raw -Path $ClientCertificateFile
         }
         if ($ClientKey) {
@@ -506,14 +532,30 @@ function Get-PFXFromPem {
         }
         elseif ($ClientKeyFile) {
             if (-not (Test-Path $ClientKeyFile)) {
-                Write-Error "ClientKeyFile '$ClientKeyFile' not found"
+                Write-Error "Client key file '$ClientKeyFile' not found"
                 return
             }
+            Write-Debug "Reading key from file: $ClientKeyFile"
             $KeyContent = Get-Content -Raw -Path $ClientKeyFile
         }
+
+        # Validate we have both elements
+        if (-not ($CertificateContent -and $KeyContent)) {
+            throw "Both client certificate and key are required for mutual TLS."
+        }
+
+        # Handle encrypted keys differently
+        if ($KeyContent.StartsWith("-----BEGIN ENCRYPTED PRIVATE KEY-----")) {
+            if (-not $ClientKeyPassword) {
+                $ClientKeyPasswordSec = Read-Host -Prompt "Enter password for encrypted key" -AsSecureString
+                $ClientKeyPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ClientKeyPasswordSec))
+            }
+            $PemCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromEncryptedPem($CertificateContent, $KeyContent, $ClientKeyPassword)
+        }
+        else {
+            $PemCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPem($CertificateContent, $KeyContent)
+        }
     
-    
-        $PemCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPem($CertificateContent, $KeyContent)
         $PFXBytes = $PemCertificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx)
         $PFX = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($PFXBytes)
     
@@ -739,7 +781,7 @@ function Invoke-Http {
     .PARAMETER Body
     Request body, either as PSCustomObject, hashtable or string. Non-string objects are converted to JSON strings.
     .PARAMETER Display
-    Format to display input and output elements. Can contain one or more of the following options: H - request headers, B - request body, s - response status code and description, S - response status code only, h - response headers, b - response body as string, j - response body JSON string converted to PSCustomObject, x - response body XML converted to XML object. In various circumstances, the text printed to the screen will be coloured according to your shell settings, and will adapt accordingly.
+    Format to display input and output elements. Can contain one or more of the following options: U - request URI including protocol and hostname, R - full HTTP request, H - request headers, B - request body, s - response status code and description, S - response status code only, h - response headers, b - response body as string, j - response body JSON string converted to PSCustomObject, x - response body XML converted to XML object. In various circumstances, the text printed to the screen will be coloured according to your shell settings, and will adapt accordingly.
     .PARAMETER DisplayParts
     Array of integers indicating which multi-part response parts to display. If not specified, all parts will be displayed. If specified, only the parts in the array will be displayed.
     .PARAMETER DisplayHeaders
@@ -757,9 +799,11 @@ function Invoke-Http {
     .PARAMETER ClientCertificateFile
     File containing base64-encoded public key of your client certificate.
     .PARAMETER ClientKey
-    String containing base64-encoded private key of your client certificate.
+    String containing base64-encoded private key of your client certificate. This can be either plain-text or encrypted. If encrypted, you must provide the password with the -ClientKeyPassword parameter, or provide it when prompted.
     .PARAMETER ClientKeyFile
     File containing base64-encoded private key of your client certificate.
+    .PARAMETER ClientKeyPassword
+    Password for your client key, if it is encrypted. Note: the password will be visible in your shell history if provided on the command line. If not provided, you will be prompted for it, but as a secure string so it will not be visible in your shell history.
     .PARAMETER Resolve
     Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
     .PARAMETER AdditionalParams
@@ -824,6 +868,10 @@ function Invoke-Http {
         [Parameter()]
         [string]
         $ClientKeyFile,
+
+        [Parameter()]
+        [string]
+        $ClientKeyPassword,
         
         [Parameter()]
         [string]
@@ -1091,7 +1139,9 @@ function Invoke-Http {
                 $AdditionalRequestCookies.Add($Param.Replace('==', '='))
             }
             elseif ($Param -match $QueryParamRegex) {
-                $AdditionalQueryParams.Add($Param)
+                $SplitParam = $Param.Split('=', 2)
+                $EncodedParam = $SplitParam[0] + '=' + [System.Web.HttpUtility]::UrlEncode($SplitParam[1])
+                $AdditionalQueryParams.Add($EncodedParam)
             }
         }
 
@@ -1184,25 +1234,28 @@ function Invoke-Http {
 
         ### Parse Http Version
         if ($null -eq $PSBoundParameters.HttpVersion) {
-            $HttpVersion = $DefaultHttpVersion
+            $HttpVersionString = $DefaultHttpVersion
+        }
+        else {
+            $HttpVersionString = "$($PSBoundParameters.HttpVersion.Major).$($PSBoundParameters.HttpVersion.Minor)"
         }
         if ($Http1) {
-            $HttpVersion = '1.0'
+            $HttpVersionString = '1.0'
         }
         elseif ($Http11) {
-            $HttpVersion = '1.1'
+            $HttpVersionString = '1.1'
         }
         elseif ($Http2) {
-            $HttpVersion = '2.0'
+            $HttpVersionString = '2.0'
         }
-        elseif ($HTT3) {
-            $HttpVersion = '3.0'
+        elseif ($Http3) {
+            $HttpVersionString = '3.0'
         }
 
         ## Handle overridden erroraction
-        $ErrorAction = 'stop'
+        $IWRErrorAction = 'stop'
         if ($PSBoundParameters.ErrorAction) {
-            $ErrorAction = $PSBoundParameters.ErrorAction
+            $IWRErrorAction = $PSBoundParameters.ErrorAction
         }
 
         ## Handle skip switches to true
@@ -1221,8 +1274,8 @@ function Invoke-Http {
             SkipHeaderValidation = $SkipHeaderValidation
             SkipHttpErrorCheck   = $SkipHttpErrorCheck
             Proxy                = $Proxy
-            HttpVersion          = $HttpVersion
-            ErrorAction          = $ErrorAction
+            HttpVersion          = $HttpVersionString
+            ErrorAction          = $IWRErrorAction
             DisableKeepAlive     = $true
         }
         # Add additional params to IWRParams
@@ -1241,6 +1294,7 @@ function Invoke-Http {
             'ClientCertificateFile',
             'ClientKey',
             'ClientKeyFile',
+            'ClientKeyPassword',
             'Resolve',
             'EdgeRCFile',
             'Section',
@@ -1279,7 +1333,19 @@ function Invoke-Http {
                 return
             }
             
-            $IWRParams.Certificate = $PSBoundParameters | Select-Object ClientCertificate, ClientCertificateFile, ClientKey, ClientKeyFile | Get-PFXFromPem
+            $PFXParams = @{
+                ClientCertificate     = $ClientCertificate
+                ClientCertificateFile = $ClientCertificateFile
+                ClientKey             = $ClientKey
+                ClientKeyFile         = $ClientKeyFile
+                ClientKeyPassword     = $ClientKeyPassword
+            }
+            try {
+                $IWRParams.Certificate = Get-PFXFromPem @PFXParams
+            }
+            catch {
+                throw $_
+            }
         }
 
         # Add -PassThru if OutFile present
@@ -1295,15 +1361,26 @@ function Invoke-Http {
             ## Process colour pallette
             $ColourPalette = Get-ColourPalette
 
+            ## Request URI
+            if ($Display.contains('U')) {
+                Write-Output $Uri
+            }
+
+            ## Full request
+            if ($Display.contains('R')) {
+                Write-ColourRequest -Method $Method -HttpVersion $HttpVersionString -ParsedUri $ParsedURI -ColourPalette $ColourPalette
+            }
+
             ## Request Headers
             if ($Display.contains('H')) {
                 # Format headers hashtable into array of objects
                 $RequestHeaders = $Headers.Keys | ForEach-Object {
                     [PSCustomObject] @{ Name = $_; Value = $Headers[$_] }
                 }
-
-                Write-ColourRequest -Method $Method -HttpVersion $HttpVersion -ParsedUri $ParsedURI -ColourPalette $ColourPalette
-                $RequestHeaders | Write-ColourHeaders -ColourPalette $ColourPalette
+                if ($DisplayHeaders) {
+                    $RequestHeaders = $RequestHeaders | Where-Object { $_.Name -in $DisplayHeaders }
+                }
+                $RequestHeaders | Sort-Object -Property Name | Write-ColourHeaders -ColourPalette $ColourPalette
                 # Add new line
                 Write-Output ""
             }
@@ -1340,7 +1417,7 @@ function Invoke-Http {
                 'The maximum redirection count has been exceeded. To increase the number of redirections allowed, supply a higher value to the -MaximumRedirection parameter.'
             )
             if ($ResponseError.ErrorDetails.Message -notin $ErrorsToSkip) {
-                return $ResponseError
+                throw $ResponseError
             }
         }
 

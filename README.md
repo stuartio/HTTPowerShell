@@ -74,6 +74,8 @@ web https://httpbin.org/ session==12345
 
 By default, HTTPowershell will display response status, headers and body. You can configure this by the use of the `-Display` or `-d` parameter. It can contain one or more of the following options
 
+- `U` - Full request URI, e.g. `https://www.example.com/path?query=yes`
+- `R` - Full HTTP request, e.g. `GET /path?query=yes HTTP/1.1`
 - `H` - Request headers
 - `B` - Request body
 - `s` - Response status code, e.g. `200`
