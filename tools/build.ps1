@@ -60,9 +60,11 @@ $Params = @{
     FunctionsToExport = $PublicFiles.BaseName
     AliasesToExport   = $Aliases
     CmdletsToExport   = @()
-    Copyright         = '(c) 2025 Akamai Technologies. All rights reserved.'
-    Author            = 'Akamai Technologies Ltd.'
-    RequiredModules   = @('WriteColour')
+    Copyright         = '(c) 2026 Stuart Macleod. All rights reserved.'
+    Author            = 'Stuart Macleod'
+    RequiredModules   = @(
+        @{ModuleName = 'WriteColour'; GUID = '704cd14a-5f5e-46ae-887e-70dd29378136'; ModuleVersion = '0.7.0'; }
+    )
 }
     
 if ($Version) {
