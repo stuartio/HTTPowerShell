@@ -512,7 +512,11 @@ function Get-PFXFromPem {
         
         [Parameter(ValueFromPipelineByPropertyName)]
         [string]
-        $ClientKeyPassword
+        $ClientKeyPassword,
+        
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [System.Security.SecureString]
+        $SecureClientKeyPassword
     )
 
     process {
@@ -546,9 +550,11 @@ function Get-PFXFromPem {
 
         # Handle encrypted keys differently
         if ($KeyContent.StartsWith("-----BEGIN ENCRYPTED PRIVATE KEY-----")) {
-            if (-not $ClientKeyPassword) {
-                $ClientKeyPasswordSec = Read-Host -Prompt "Enter password for encrypted key" -AsSecureString
-                $ClientKeyPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ClientKeyPasswordSec))
+            if (-not $ClientKeyPassword -and -not $SecureClientKeyPassword) {
+                $SecureClientKeyPassword = Read-Host -Prompt "Enter password for encrypted key" -AsSecureString
+            }
+            if ($SecureClientKeyPassword) {
+                $ClientKeyPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureClientKeyPassword))
             }
             $PemCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromEncryptedPem($CertificateContent, $KeyContent, $ClientKeyPassword)
         }
@@ -804,6 +810,8 @@ function Invoke-Http {
     File containing base64-encoded private key of your client certificate.
     .PARAMETER ClientKeyPassword
     Password for your client key, if it is encrypted. Note: the password will be visible in your shell history if provided on the command line. If not provided, you will be prompted for it, but as a secure string so it will not be visible in your shell history.
+    .PARAMETER SecureClientKeyPassword
+    Secure string password for your client key, if it is encrypted. This option is more secure than using -ClientKeyPassword, but requires you to create a secure string object first.
     .PARAMETER Resolve
     Replace hostname in your request Uri, but maintain Host header. Analagous to the --resolve option in cURL.
     .PARAMETER AdditionalParams
@@ -872,6 +880,10 @@ function Invoke-Http {
         [Parameter()]
         [string]
         $ClientKeyPassword,
+        
+        [Parameter()]
+        [System.Security.SecureString]
+        $SecureClientKeyPassword,
         
         [Parameter()]
         [string]
@@ -1295,6 +1307,7 @@ function Invoke-Http {
             'ClientKey',
             'ClientKeyFile',
             'ClientKeyPassword',
+            'SecureClientKeyPassword',
             'Resolve',
             'EdgeRCFile',
             'Section',
@@ -1334,11 +1347,12 @@ function Invoke-Http {
             }
             
             $PFXParams = @{
-                ClientCertificate     = $ClientCertificate
-                ClientCertificateFile = $ClientCertificateFile
-                ClientKey             = $ClientKey
-                ClientKeyFile         = $ClientKeyFile
-                ClientKeyPassword     = $ClientKeyPassword
+                ClientCertificate       = $ClientCertificate
+                ClientCertificateFile   = $ClientCertificateFile
+                ClientKey               = $ClientKey
+                ClientKeyFile           = $ClientKeyFile
+                ClientKeyPassword       = $ClientKeyPassword
+                SecureClientKeyPassword = $SecureClientKeyPassword
             }
             try {
                 $IWRParams.Certificate = Get-PFXFromPem @PFXParams

@@ -72,7 +72,7 @@ web https://httpbin.org/ session==12345
 
 ## Configuring the display
 
-By default, HTTPowershell will display response status, headers and body. You can configure this by the use of the `-Display` or `-d` parameter. It can contain one or more of the following options
+By default, HTTPowershell will display response status, headers and body. You can configure this by the use of the `-Display` or `-d` parameter. It can contain one or more of the following options:
 
 - `U` - Full request URI, e.g. `https://www.example.com/path?query=yes`
 - `R` - Full HTTP request, e.g. `GET /path?query=yes HTTP/1.1`
@@ -84,6 +84,8 @@ By default, HTTPowershell will display response status, headers and body. You ca
 - `b` - Response body as formatted string
 - `j` - Response body converted from JSON to PSCustomObject
 - `x` - Response body converted from XML to PSCustomObject
+- `t` - Response time with formatting
+- `T` - Response time as DateTime object
 
 For example:
 
@@ -167,7 +169,9 @@ web /papi/v1/contracts -Authentication EdgeGrid -EdgeRCFile /path/to/my.edgerc -
 
 ### Mutual TLS / Client Certificates
 
-HTTPowerShell supports client certificates in several ways. You can provide your base64-encoded PEM certificate and key as either strings or file paths, and Windows users can use the Windows Certificate Store in the same way as with Invoke-WebRequest.
+HTTPowerShell supports client certificates in several ways. You can provide your base64-encoded PEM certificate and key as either strings or file paths, and Windows users can use the Windows Certificate Store in the same way as with Invoke-WebRequest. Additionally, if your private key file is encrypted you can provide the password as a parameter, either as an unencrypted string or as a SecureString. However, note that using a plain-text string will show the password on your shell, so is not recommended if you need to maximise security.
+
+> Note: If your private key is encrypted and you do not provide the password you will be prompted for it, which is a blocking operation
 
 For example:
 
@@ -181,6 +185,21 @@ web www.example.com -ClientCertificateFile mycert.pem -ClientKeyFile mycert.key
 $MyCert = "---BEGIN CERTIFICATE---<pem data>---END CERTIFICATE---"
 $MyKey = "---BEGIN RSA PRIVATE KEY---<key data>---END RSA PRIVATE KEY---"
 web www.example.com -ClientCertificate $MyCert -ClientKey $MyKey
+```
+
+```powershell
+# Specify the pem and key of your client certificate as strings, and the key password as a plaintext parameter
+$MyCert = "---BEGIN CERTIFICATE---<pem data>---END CERTIFICATE---"
+$MyKey = "-----BEGIN ENCRYPTED PRIVATE KEY-----<key data>---END ENCRYPTED PRIVATE KEY---"
+web www.example.com -ClientCertificate $MyCert -ClientKey $MyKey -ClientKeyPassword 'mysupersecretpassword'
+```
+
+```powershell
+# Specify the pem and key of your client certificate as strings, and the key password as a SecureString parameter
+$MyCert = "---BEGIN CERTIFICATE---<pem data>---END CERTIFICATE---"
+$MyKey = "-----BEGIN ENCRYPTED PRIVATE KEY-----<key data>---END ENCRYPTED PRIVATE KEY---"
+$SecureSecret = Read-Host -Prompt "Enter your client key password" -AsSecureString
+web www.example.com -ClientCertificate $MyCert -ClientKey $MyKey -SecureClientKeyPassword $SecureSecret
 ```
 
 ```powershell

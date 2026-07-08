@@ -254,6 +254,7 @@ Describe "Invoke-HTTP Tests" {
                 $ClientCert = Get-Content -Raw -Path $ClientCertPath
                 $ClientKey = Get-Content -Raw -Path $ClientKeyPath
                 $ClientEKey = Get-Content -Raw -Path $ClienEKeyPath
+                $SecureClientKeyPassword = ConvertTo-SecureString 'badssl.com' -AsPlainText -Force
             }
             It 'succeeds when reading non-encrypted data from files' {
                 $TestParams = @{
@@ -285,7 +286,7 @@ Describe "Invoke-HTTP Tests" {
                 $Result = Invoke-Http @TestParams
                 $Result | Should -Be 200
             }
-            It 'succeeds when using an encrypted key from a file, with a password provided' {
+            It 'succeeds when using an encrypted key from a file, with a plaintext password provided' {
                 $TestParams = @{
                     Uri                   = 'https://client.badssl.com/'
                     ClientCertificateFile = $ClientCertPath
@@ -296,7 +297,7 @@ Describe "Invoke-HTTP Tests" {
                 $Result = Invoke-Http @TestParams
                 $Result | Should -Be 200
             }
-            It 'succeeds when using an encrypted key from a variable, with a password provided' {
+            It 'succeeds when using an encrypted key from a variable, with a plaintext password provided' {
                 $TestParams = @{
                     Uri                   = 'https://client.badssl.com/'
                     ClientCertificateFile = $ClientCertPath
@@ -307,6 +308,38 @@ Describe "Invoke-HTTP Tests" {
                 $Result = Invoke-Http @TestParams
                 $Result | Should -Be 200
             }
+            It 'succeeds when using an encrypted key from a file, with a secure password provided' {
+                $TestParams = @{
+                    Uri                     = 'https://client.badssl.com/'
+                    ClientCertificateFile   = $ClientCertPath
+                    ClientKeyFile           = $ClienEKeyPath
+                    SecureClientKeyPassword = $SecureClientKeyPassword
+                    Display                 = 'S'
+                }
+                $Result = Invoke-Http @TestParams
+                $Result | Should -Be 200
+            }
+            It 'succeeds when using an encrypted key from a variable, with a secure password provided' {
+                $TestParams = @{
+                    Uri                     = 'https://client.badssl.com/'
+                    ClientCertificateFile   = $ClientCertPath
+                    ClientKey               = $ClientEKey
+                    SecureClientKeyPassword = $SecureClientKeyPassword
+                    Display                 = 'S'
+                }
+                $Result = Invoke-Http @TestParams
+                $Result | Should -Be 200
+            }
+            # It 'succeeds when using an encrypted key from a variable, with a prompted password' {
+            #     $TestParams = @{
+            #         Uri                   = 'https://client.badssl.com/'
+            #         ClientCertificateFile = $ClientCertPath
+            #         ClientKey             = $ClientEKey
+            #         Display               = 'S'
+            #     }
+            #     $Result = Invoke-Http @TestParams
+            #     $Result | Should -Be 200
+            # }
         }
     }
 

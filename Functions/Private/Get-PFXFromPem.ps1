@@ -18,7 +18,11 @@ function Get-PFXFromPem {
         
         [Parameter(ValueFromPipelineByPropertyName)]
         [string]
-        $ClientKeyPassword
+        $ClientKeyPassword,
+        
+        [Parameter(ValueFromPipelineByPropertyName)]
+        [System.Security.SecureString]
+        $SecureClientKeyPassword
     )
 
     process {
@@ -52,9 +56,11 @@ function Get-PFXFromPem {
 
         # Handle encrypted keys differently
         if ($KeyContent.StartsWith("-----BEGIN ENCRYPTED PRIVATE KEY-----")) {
-            if (-not $ClientKeyPassword) {
-                $ClientKeyPasswordSec = Read-Host -Prompt "Enter password for encrypted key" -AsSecureString
-                $ClientKeyPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ClientKeyPasswordSec))
+            if (-not $ClientKeyPassword -and -not $SecureClientKeyPassword) {
+                $SecureClientKeyPassword = Read-Host -Prompt "Enter password for encrypted key" -AsSecureString
+            }
+            if ($SecureClientKeyPassword) {
+                $ClientKeyPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureClientKeyPassword))
             }
             $PemCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromEncryptedPem($CertificateContent, $KeyContent, $ClientKeyPassword)
         }
