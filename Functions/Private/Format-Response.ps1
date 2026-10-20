@@ -62,7 +62,7 @@ function Format-Response {
     }
 
     # ---- Handle multi-part response
-    if ($ContentType -like 'multipart/form-data*') {
+    if ($ContentType -like 'multipart/*') {
         $BoundaryMatch = $ContentType | Select-String -Pattern 'boundary=([^ ]*)'
         if ($BoundaryMatch) {
             $Boundary = $BoundaryMatch.Matches[0].Groups[1].Value

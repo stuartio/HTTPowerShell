@@ -84,7 +84,7 @@ function Format-Response {
     }
 
     # ---- Handle multi-part response
-    if ($ContentType -like 'multipart/form-data*') {
+    if ($ContentType -like 'multipart/*') {
         $BoundaryMatch = $ContentType | Select-String -Pattern 'boundary=([^ ]*)'
         if ($BoundaryMatch) {
             $Boundary = $BoundaryMatch.Matches[0].Groups[1].Value
@@ -1106,7 +1106,7 @@ function Invoke-Http {
             'Accept-Encoding' = 'gzip,deflate'
             'Connection'      = 'keep-alive'
             'Content-Type'    = 'application/json'
-            'User-Agent'      = 'HttPowershell/0.0.1'
+            'User-Agent'      = 'HttPowershell/0.3.0'
         }
 
         ### Parse Params
@@ -1465,7 +1465,7 @@ function Invoke-Http {
                         continue
                     }
 
-                    Write-ColourOutput "|-green-|Multi-Part Headers:|-!-|"
+                    Write-ColourOutput "|-green-|Multi-Part Headers - Part $p`:|-!-|"
                     $FormattedResponse.Parts[$p - 1].Headers | Write-ColourHeaders -ColourPalette $ColourPalette
                     # Add new line
                     Write-Output ""
@@ -1485,7 +1485,7 @@ function Invoke-Http {
                         continue
                     }
                     
-                    Write-ColourOutput "|-green-|Multi-Part Body:|-!-|"
+                    Write-ColourOutput "|-green-|Multi-Part Body - Part $p`:|-!-|"
                     $Part = $FormattedResponse.Parts[$p - 1]
                     Write-ColourBody -Output $Part.Body -ContentType $Part.ContentType -ColourPalette $ColourPalette
                     # Add new line
@@ -1502,9 +1502,10 @@ function Invoke-Http {
                     # Write-Output ""
                 }
                 
-                foreach ($Part in $FormattedResponse.Parts) {
+                for ($p = 1; $p -le $FormattedResponse.Parts.count; $p++) {
+                    $Part = $FormattedResponse.Parts[$p - 1]
                     Write-Host "Multi-part body" -ForegroundColor green
-                    Write-ColourOutput "|-green-|Multi-Part Body:|-!-|"
+                    Write-ColourOutput "|-green-|Multi-Part Body - Part $p`:|-!-|"
                     Write-ColourBody -Output $Part.Body -ContentType $Part.ContentType -Always -ColourPalette $ColourPalette
                     # Add new line
                     # Write-Output ""
