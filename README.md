@@ -26,7 +26,7 @@ The simplest use case to make a request requires just this
 web httpbin.org
 ```
 
-This will perform a GET request against the above URL and display the status code, response headers and response body. It will also assume the protocol to be https://, because it usually is in these fancy, modern times. If you specify the protocol, this is fine, too. And you can also specify plain http if required.
+This will perform a GET request against the above URL and display the status code, response headers and response body. It will also assume the protocol to be `https://`, because it usually is in these fancy, modern times. If you specify the protocol, this is fine, too. And you can also specify plain http if required.
 
 > Note: the Uri is the only positional parameter, so unless you add the -Uri parameter name it must come before any other, unnamed, parameter values.
 
@@ -35,7 +35,7 @@ This will perform a GET request against the above URL and display the status cod
 Request headers can be added anywhere in the command by use of the `key:value` combination, like this:
 
 ```powershell
-web https://httpbin.org/ accept:*.* user-agent:httpowershell
+web httpbin.org/ accept:*.* user-agent:httpowershell
 ```
 
 > Strings do not need to be quoted unless they contain PowerShell control characters, such as semi-colon (;) or ampersand (&). For safety, quoting the whole string or either part of it is fine.
@@ -47,16 +47,16 @@ web https://httpbin.org/ accept:*.* user-agent:httpowershell
 Query string parameters can be added anywhere in the command by the use of the `key=value` combination, like this:
 
 ```powershell
-web https://httpbin.org/ include=yes deny=no
+web httpbin.org/ include=yes deny=no
 ```
 
-This will result in a request Uri of `https://httpbin.org/?include=yes&deny=no`. You can also combine query parameters specified in this way and included in the Uri, like this:
+This will result in a request Uri of `httpbin.org/?include=yes&deny=no`. You can also combine query parameters specified in this way and included in the Uri, like this:
 
 ```powershell
-web https://httpbin.org/?one=1&two=2 include=yes deny=no
+web httpbin.org/?one=1&two=2 include=yes deny=no
 ```
 
-In this case the resulting Uri would be `https://httpbin.org/?one=1&two=2&include=yes&deny=no`
+In this case the resulting Uri would be `httpbin.org/?one=1&two=2&include=yes&deny=no`
 
 > Strings do not need to be quoted unless they contain PowerShell control characters, such as semi-colon (;) or ampersand (&). For safety, quoting the whole string or either part of it is fine.
 
@@ -65,7 +65,7 @@ In this case the resulting Uri would be `https://httpbin.org/?one=1&two=2&includ
 Request cookies can be added anywhere in the command by the use of the `key==value` combination (note the double `=`), like this:
 
 ```powershell
-web https://httpbin.org/ session==12345
+web httpbin.org/ session==12345
 ```
 
 > Strings do not need to be quoted unless they contain PowerShell control characters, such as semi-colon (;) or ampersand (&). For safety, quoting the whole string or either part of it is fine.
@@ -78,10 +78,12 @@ By default, HTTPowershell will display response status, headers and body. You ca
 - `R` - Full HTTP request, e.g. `GET /path?query=yes HTTP/1.1`
 - `H` - Request headers
 - `B` - Request body
-- `s` - Response status code, e.g. `200`
-- `S` - Response status code with description, e.g. `200 OK`
+- `S` - Response status code, e.g. `200`
+- `s` - Response status code with description, e.g. `200 OK`
 - `h` - Response headers
-- `b` - Response body as formatted string
+- `b` - Response body as formatted string. Only applicable to text based response types.
+- `a` - Raw response body, regardless of content-type.
+- `r` - Full raw HTTP response, including status, headers and body.
 - `j` - Response body converted from JSON to PSCustomObject
 - `x` - Response body converted from XML to PSCustomObject
 - `t` - Response time with formatting
@@ -91,40 +93,89 @@ For example:
 
 ```powershell
 # Display default response status, headers and body
-web https://httpbin.org/ -Display shb
+web httpbin.org/ -Display shb
+
+HTTP/1.1 200 OK
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: *
+Connection: close
+Content-Length: 9593
+Content-Type: text/html; charset=utf-8
+Date: Tue, 20 Oct 2026 18:16:59 GMT
+Server: gunicorn/19.9.0
+
+<!DOCTYPE html>
+<html lang="en">
+... Lots more HTML here ...
 ```
 
 ```powershell
 # Display request url and headers
-web https://httpbin.org/ -Display H
+web httpbin.org/ -Display H
+
+Accept: */*
+Accept-Encoding: gzip,deflate
+Connection: keep-alive
+Content-Type: application/json
+Host: httpbin.org
+User-Agent: HttPowershell/0.3.0
 ```
 
 ```powershell
 # Display response body only
-web https://httpbin.org/ -d b
+web httpbin.org/ -d b
+
+<!DOCTYPE html>
+<html lang="en">
+... Lots more HTML here ...
 ```
 
 ```powershell
-# Display response body as object
-web https://httpbin.org/ -d j
+# Display response body as object. Note: this only works when the response is JSON-formatted, which we then conver to an object with ConvertFrom-JSON
+web httpbun.com/status/200 -d j
+
+code description
+---- -----------
+ 200 OK
 ```
 
 ### Limiting the displayed headers
 
-Often, the number of response headers can be quite large, and you may only be interested in a small number. You can use methods like `Select-String` to filter the output, but combining multiple headers, _and_ the status and perhaps even the response body into a single `Select-String` pattern can be problematic, so we have added an option to limit the displayed headers with `-DisplayHeaders` and an array of strings.
+Often, the number of response headers can be quite large, and you may only be interested in a subset. You can use methods like `Select-String` to filter the output, but combining multiple headers _and_ the status, and perhaps even the response body into a single `Select-String` pattern can be problematic, so we have added an option to limit the displayed headers with `-DisplayHeaders` and an array of strings.
 
 For example:
 
 ```powershell
 web www.example.com -Display sh -DisplayHeaders server, content-type
+
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Server: cloudflare
 ```
 
 ### Handling multi-part response bodies
 
-When you receive a response which uses a Content type similar to "multipart/form-data", the response is broken out in multiple "parts", each with headers and body elements. HTTPowerShell allows you to specify which of these parts to display, which are then further filtered by your use of the -Display parameter. For example, if you want to display only the headers of the second part of a response, for example when using Akamai EdgeWorkers' Response Provider feature, you can do this with
+When you receive a response which uses a Content type similar to "multipart/*", the response is broken out in multiple "parts", each with headers and body elements. HTTPowerShell allows you to specify which of these parts to display, which are then further filtered by your use of the `-Display` parameter. For example, if you want to display only the headers of the second part of a response, for example when using Akamai EdgeWorkers' Response Provider feature, you can do this with
 
 ```powershell
-web https://httpbin.org/ -Display sh -DisplayParts 1
+web httpbin.org/ -Display sh -DisplayParts 2
+
+HTTP/1.1 200 OK
+Alt-Svc: h3=":443"; ma=93600
+Cache-Control: no-store, no-cache, max-age=0
+Connection: close
+Content-Disposition: attachment; filename=EW-RP-2026-10-20-17-20-33-1154f4c.txt
+Content-Length: 17155
+Content-Type: multipart/mixed; boundary=Jfuc1OjPx7gz8PjJYyYsc5
+Date: Tue, 20 Oct 2026 17:20:33 GMT
+Expires: Tue, 20 Oct 2026 17:20:33 GMT
+Pragma: no-cache
+
+Multi-Part Headers - Part 2:
+content-type: text/html;charset=UTF-8
+
+Multi-Part Body - Part 2:
+... HTML content here ...
 ```
 
 ## Handling authentication
@@ -142,29 +193,6 @@ $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($username, $securePassword)
 
 web "www.example.com" -Authentication Basic -Credential $credential
-```
-
-### Akamai EdgeGrid
-
-If you are using HTTPowerShell to authenticate to Akamai Edgegrid APIs you can do so natively, without install the Akamai PowerShell modules. Essentially, when you specify the auth type as `edgegrid` Invoke-HTTP dynamically adds 3 additional parameters: `EdgeRCFile`, `Section` and `AccountSwitchKey`.
-
-Also, when using EdgeGrid authentication you do not need to provide the protocol or hostname in your request URI, as these are inferred from your credentials.
-
-For example:
-
-```powershell
-# Make a request using the default location for your .edgerc file (~/.edgerc) and the 'default' section
-web /papi/v1/contracts -Authentication EdgeGrid
-```
-
-```powershell
-# Make a request using a custom .edgerc location and section
-web /papi/v1/contracts -Authentication EdgeGrid -EdgeRCFile /path/to/my.edgerc -Section other
-```
-
-```powershell
-# Make a request using a custom .edgerc location and section, and an account switch key
-web /papi/v1/contracts -Authentication EdgeGrid -EdgeRCFile /path/to/my.edgerc -Section other -AccountSwitchKey 1-2AB34C
 ```
 
 ### Mutual TLS / Client Certificates
@@ -208,6 +236,29 @@ $MyCert = gci Cert:\CurrentUser\My\ | Where-Object { 'Client Authentication' -in
 web www.example.com -CertificateThumbprint $MyCert.Thumbprint
 ```
 
+### Akamai EdgeGrid
+
+If you are using HTTPowerShell to authenticate to Akamai Edgegrid APIs you can do so natively, without install the Akamai PowerShell modules. Essentially, when you specify the auth type as `edgegrid` Invoke-HTTP dynamically adds 3 additional parameters: `EdgeRCFile`, `Section` and `AccountSwitchKey`.
+
+Also, when using EdgeGrid authentication you do not need to provide the protocol or hostname in your request URI, as these are inferred from your credentials.
+
+For example:
+
+```powershell
+# Make a request using the default location for your .edgerc file (~/.edgerc) and the 'default' section
+web /papi/v1/contracts -Authentication EdgeGrid
+```
+
+```powershell
+# Make a request using a custom .edgerc location and section
+web /papi/v1/contracts -Authentication EdgeGrid -EdgeRCFile /path/to/my.edgerc -Section other
+```
+
+```powershell
+# Make a request using a custom .edgerc location and section, and an account switch key
+web /papi/v1/contracts -Authentication EdgeGrid -EdgeRCFile /path/to/my.edgerc -Section other -AccountSwitchKey 1-2AB34C
+```
+
 ## Specifying the HTTP Version
 
 HTTPowershell allows you to specify which version of HTTP you wish to use. For example,
@@ -234,7 +285,7 @@ web www.google.com -Http3
 
 ## Resolving to a different IP
 
-Occasionally, it is useful to force a request to a different IP, for example if you need to bypass a load balancer and hit a server directly. You can do this with HTTPowerShel with the -Resolve option, which replaces the hostname used to make the underlying HTTP request, while maintaining the hostname in your -Uri as the forward host header, and as the SNI servername header.
+Occasionally, it is useful to force a request to a different IP, for example if you need to bypass a load balancer and hit a server directly. You can do this with HTTPowerShell with the `-Resolve` option, which replaces the hostname used to make the underlying HTTP request, while maintaining the hostname in your -Uri as the forward host header, and as the SNI servername header.
 
 > Note: Since the forward SNI server name is the original hostname (not the resolved one), then you may face an issue that the presented TLS certificate of the new server is invalid. If this is OK you can use the -SkipCertificateCheck to bypass the TLS error and proceed. However, this option should be used only when you are sure the receiving server is trustworthy.
 
@@ -249,7 +300,7 @@ If you are working with Akamai, you can also use this feature as a short cut to 
 
 > Note: As this feature requires DNS resolution it will incur a performance penalty and requires that the CNAME chain be visible in DNS, i.e. no CNAME collapsing features such as Zone Apex Mapping are employed.
 
-To use this, you can set -Resolve to literally 'AkamaiStaging' (the casing is unimportant, like this:
+To use this, you can set `-Resolve` to literally `AkamaiStaging` (the casing is unimportant), like this:
 
 ```powershell
 web www.example.com -Resolve AkamaiStaging
